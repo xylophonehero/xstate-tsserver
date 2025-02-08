@@ -1,14 +1,18 @@
 {
   "name": "xstate-tsserver",
+  "description": "XState tsserver plugin for easier navigation in state machines",
   "version": "0.0.1",
   "license": "MIT",
   "main": "./out",
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "author": "Nick Worrall",
   "dependencies": {
     "tree-sitter": "^0.21.1",
     "tree-sitter-typescript": "^0.23.2",
     "typescript": "^5.7.3"
   },
-  "devDependencies": {
-    "xstate": "^5.19.2"
-  }
+  "keywords": ["typescript", "xstate", "tsserver", "plugin", "tree-sitter"]
 }
