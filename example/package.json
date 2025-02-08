@@ -1,7 +1,8 @@
 {
-    "name": "example-tsc-codebase",
-    "dependencies": {
-        "tsserver-plugin": "file:..",
-        "typescript": "^4.4.3"
-    }
+  "name": "example-tsc-codebase",
+  "dependencies": {
+    "typescript": "^5.7.3",
+    "xstate": "^5.19.2",
+    "xstate-tsserver": "file:.."
+  }
 }

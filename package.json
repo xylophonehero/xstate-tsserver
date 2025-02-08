@@ -1,9 +1,14 @@
 {
-    "name": "my-plugin",
-    "version": "0.0.1",
-    "license": "MIT",
-    "main": "./out",
-    "dependencies": {
-        "typescript": "^4.4.3"
-    }
+  "name": "xstate-tsserver",
+  "version": "0.0.1",
+  "license": "MIT",
+  "main": "./out",
+  "dependencies": {
+    "tree-sitter": "^0.21.1",
+    "tree-sitter-typescript": "^0.23.2",
+    "typescript": "^5.7.3"
+  },
+  "devDependencies": {
+    "xstate": "^5.19.2"
+  }
 }
