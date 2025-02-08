@@ -34,7 +34,7 @@ function init(modules: {
     function log(message: string) {
       info.project.projectService.logger.info(message);
     }
-    log("XState plugin loaded");
+    log("xstate tsserver loaded");
 
     // Set up decorator object
     const proxy: LanguageService = Object.create(null);
