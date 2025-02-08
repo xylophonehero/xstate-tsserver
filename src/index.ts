@@ -1,39 +1,36 @@
 import type { LanguageService, server } from "typescript/lib/tsserverlibrary";
-import Parser from "tree-sitter";
-import TypeScript from "tree-sitter-typescript";
+import { createNodeDefinition } from "./utils";
+import { getFileRootNode } from "./treesitter";
 import {
-  configActionsQuery,
-  configActorsQuery,
-  configGuardsQuery,
-  machineWithSetupQuery,
-  setupActionsQuery,
-  setupActorsQuery,
-  setupGuardsQuery,
-} from "./queries";
-import {
-  createNodeDefinition,
-  findNodeAtPosition,
-  removeQuotes,
-} from "./utils";
-import {
-  findAllCaptureMatches,
-  isNodeType,
-  findCaptureNodeWithText,
-  getFileRootNode,
-} from "./treesitter";
+  getImplementationType,
+  getMachineConfigNodes,
+  getSetupNode,
+} from "./xstate";
 
 function init(modules: {
   typescript: typeof import("typescript/lib/tsserverlibrary");
 }) {
   const ts = modules.typescript;
-  const parser = new Parser();
-  parser.setLanguage(TypeScript.typescript);
 
   function create(info: server.PluginCreateInfo) {
     // Diagnostic logging
     function log(message: string) {
       info.project.projectService.logger.info(message);
     }
+
+    function getMachineUnderCursor(fileName: string, position: number) {
+      const program = info.languageService.getProgram();
+      const sourceFile = program?.getSourceFile(fileName);
+      if (!sourceFile) return null;
+
+      const rootNode = getFileRootNode(sourceFile);
+
+      const machineConfigNodes = getMachineConfigNodes(rootNode, position);
+      if (!machineConfigNodes) return null;
+
+      return machineConfigNodes;
+    }
+
     log("xstate tsserver loaded");
 
     // Set up decorator object
@@ -73,85 +70,17 @@ function init(modules: {
         position,
       );
 
-      const program = info.languageService.getProgram();
-      const sourceFile = program?.getSourceFile(fileName);
-      if (!sourceFile) return prior;
+      const machineConfigNodes = getMachineUnderCursor(fileName, position);
+      if (!machineConfigNodes) return prior;
 
-      const rootNode = getFileRootNode(sourceFile);
+      const { machineConfig, setupConfig } = machineConfigNodes;
+      const { type, text } = getImplementationType(machineConfig, position);
+      if (type === "unknown") return prior;
 
-      const {
-        "xstate.machine": machine,
-        "xstate.root.config": machineConfig,
-        "xstate.setup.config": setupConfig,
-      } = findAllCaptureMatches(rootNode, machineWithSetupQuery);
-      // Not in a machine
-      if (!machine) return prior;
-
-      const node = findNodeAtPosition(ts, sourceFile, position);
-      if (!node) return prior;
-      const hoveredText = node.getText();
-
-      const isAction = isNodeType(
-        machineConfig,
-        configActionsQuery,
-        position,
-        "xstate.action",
-      );
-
-      if (isAction) {
-        log(`✅ Found action definition: ${removeQuotes(hoveredText)}`);
-        const actionNode = findCaptureNodeWithText(
-          setupConfig,
-          setupActionsQuery,
-          "action.name",
-          removeQuotes(hoveredText),
-        );
-        if (actionNode) {
-          log(`✅ Found action node: ${actionNode.startPosition.row}`);
-          return createNodeDefinition(ts, fileName, actionNode);
-        }
-      }
-
-      const isGuard = isNodeType(
-        machineConfig,
-        configGuardsQuery,
-        position,
-        "xstate.guard",
-      );
-
-      if (isGuard) {
-        log(`✅ Found guard definition: ${removeQuotes(hoveredText)}`);
-        const guardNode = findCaptureNodeWithText(
-          setupConfig,
-          setupGuardsQuery,
-          "guard.name",
-          removeQuotes(hoveredText),
-        );
-        if (guardNode) {
-          log(`✅ Found guard node: ${guardNode.startPosition.row}`);
-          return createNodeDefinition(ts, fileName, guardNode);
-        }
-      }
-
-      const isActor = isNodeType(
-        machineConfig,
-        configActorsQuery,
-        position,
-        "xstate.actor",
-      );
-
-      if (isActor) {
-        log(`✅ Found actor definition: ${removeQuotes(hoveredText)}`);
-        const actorNode = findCaptureNodeWithText(
-          setupConfig,
-          setupActorsQuery,
-          "actor.name",
-          removeQuotes(hoveredText),
-        );
-        if (actorNode) {
-          log(`✅ Found actor node: ${actorNode.startPosition.row}`);
-          return createNodeDefinition(ts, fileName, actorNode);
-        }
+      const setupNode = getSetupNode(setupConfig, type, text);
+      if (setupNode) {
+        log(`✅ Found ${type} definition for ${text}`);
+        return createNodeDefinition(ts, fileName, setupNode);
       }
 
       return prior;

@@ -53,8 +53,8 @@ export function findAllCaptureMatches(
 
 export function isNodeType(
   rootNode: Parser.SyntaxNode,
-  queryString: string,
   position: number,
+  queryString: string,
   idMatch: string,
 ) {
   const parser = createParser()
@@ -65,10 +65,10 @@ export function isNodeType(
     const keyNode = match.captures.find((cap) => cap.name === idMatch)?.node;
     if (keyNode) {
       if (position >= keyNode.startIndex && position <= keyNode.endIndex) {
-        return true;
+        return keyNode;
       }
     }
   }
 
-  return false;
+  return null;
 }
