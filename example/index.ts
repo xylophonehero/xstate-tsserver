@@ -1,4 +1,4 @@
-import { and, fromCallback, not, or, setup } from "xstate";
+import { and, fromCallback, not, or, raise, sendTo, setup } from "xstate";
 
 const importedAction = () => {};
 const importedGuard = () => true;
@@ -20,6 +20,10 @@ setup({
     importedGuard,
     simpleGuard: () => true,
     guardWithParams: (_, _params: string) => true,
+  },
+  delays: {
+    simpleDelay: 1000,
+    functionDelay: () => 1000,
   },
 }).createMachine({
   entry: [
@@ -44,6 +48,10 @@ setup({
   initial: "idle",
   states: {
     idle: {
+      entry: [
+        raise({ type: "event" }, { delay: "functionDelay" }),
+        sendTo("thing", { type: "event" }, { delay: "simpleDelay" }),
+      ],
       invoke: [
         {
           src: "simpleActor",
@@ -52,6 +60,10 @@ setup({
           src: "simpleActor",
         },
       ],
+      after: {
+        simpleDelay: {},
+        functionDelay: {},
+      },
     },
   },
   on: {

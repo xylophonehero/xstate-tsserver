@@ -2,10 +2,12 @@ import Parser from "tree-sitter";
 import {
   configActionsQuery,
   configActorsQuery,
+  configDelaysQuery,
   configGuardsQuery,
   machineWithSetupQuery,
   setupActionsQuery,
   setupActorsQuery,
+  setupDelaysQuery,
   setupGuardsQuery,
 } from "./queries";
 import {
@@ -34,12 +36,13 @@ export function getMachineConfigNodes(
   return { machine, machineConfig, setupConfig };
 }
 
-type ImplementationType = "action" | "actor" | "guard";
+type ImplementationType = "action" | "actor" | "guard" | "delay";
 
 const setupQueryByImplementationType = {
   action: setupActionsQuery,
   actor: setupActorsQuery,
   guard: setupGuardsQuery,
+  delay: setupDelaysQuery,
 };
 
 /**
@@ -100,6 +103,22 @@ export function getImplementationType(
       type: "guard",
       node: guardNode,
       text: removeQuotes(guardNode.text),
+    };
+
+  const delayNode = isNodeType(
+    machineNode,
+    position,
+    configDelaysQuery,
+    "xstate.delay",
+  );
+  if (delayNode)
+    return {
+      type: "delay",
+      node: delayNode,
+      text:
+        delayNode.type === "property_identifier"
+          ? delayNode.text
+          : removeQuotes(delayNode.text),
     };
 
   return { type: "unknown", node: null, text: "" };

@@ -11,7 +11,7 @@ export const machineWithSetupQuery = `
 
 export const setupActionsQuery = `
 (pair
-  key: (property_identifier) @key (#match? @key "actions")
+  key: (property_identifier) @key (#eq? @key "actions")
   value: (object [
     (pair
       key: (property_identifier) @action.name
@@ -61,23 +61,11 @@ export const configActionsQuery = `
     )
   ])
 )
-
-(call_expression
-  function: (identifier) @raise (#eq? @raise "raise")
-  arguments: (arguments
-    (object
-      (pair
-        key: (property_identifier) @type_key
-        value: (string (string_fragment)) @xstate.action
-      )
-    )
-  )
-)
 `;
 
 export const setupGuardsQuery = `
 (pair
-  key: (property_identifier) @key (#match? @key "guards")
+  key: (property_identifier) @key (#eq? @key "guards")
   value: (object [
     (pair
       key: (property_identifier) @guard.name
@@ -91,7 +79,7 @@ export const setupGuardsQuery = `
 export const configGuardsQuery = `
 (pair
   key: (property_identifier) @key
-    (#match? @key "guard")
+    (#eq? @key "guard")
   value: [
     (string (string_fragment)) @xstate.guard
     (object
@@ -137,7 +125,7 @@ export const configGuardsQuery = `
 
 export const setupActorsQuery = `
 (pair
-  key: (property_identifier) @key (#match? @key "actors")
+  key: (property_identifier) @key (#eq? @key "actors")
   value: (object [
     (pair
       key: (property_identifier) @actor.name
@@ -167,5 +155,43 @@ export const configActorsQuery = `
       )
     )
   ]
+)
+`
+
+export const setupDelaysQuery = `
+(pair
+  key: (property_identifier) @key (#eq? @key "delays")
+  value: (object [
+    (pair
+      key: (property_identifier) @delay.name
+      value: (_)
+    )
+    (shorthand_property_identifier) @delay.name
+  ])
+)
+`;
+
+
+export const configDelaysQuery = `
+(pair
+  key: (property_identifier) @key (#eq? @key "after")
+  value: (object
+    (pair
+      key: (property_identifier) @xstate.delay
+      value: (_)
+    )
+  )
+)
+
+(call_expression
+	function: (identifier) @action (#match? @action "sendTo|raise")
+  arguments: (arguments
+		(object
+			(pair
+				key: (property_identifier) @event (#eq? @event "delay")
+				value: (string) @xstate.delay
+			)
+		)
+  )
 )
 `
