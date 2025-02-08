@@ -6,6 +6,7 @@
   "main": "./out",
   "scripts": {
     "build": "tsc",
+    "dev": "tsc --watch",
     "prepublishOnly": "npm run build"
   },
   "author": "Nick Worrall",
