@@ -1,13 +1,19 @@
 # **XState TypeScript Language Service Plugin**
 
-Enhance your **TypeScript experience** when working with **XState state machines**! This **TypeScript TSServer plugin** improves **Go to Definition** and provides **better navigation for state machine configurations** inside your editor.
+Enhance your **TypeScript experience** when working with **XState state machines**!
+This **TypeScript TSServer plugin** provides **better navigation for state machine configurations** inside your IDE.
 
 ---
 
 ## **Features**
 
-✅ **Enhances "Go to Definition" (`F12`)** to jump from a implementation to it's
-definition within the setup block.
+✅ **Go to Definition (`F12`/`gd`)** to jump from a given action, guard, actor, or delay to its definition within the setup block of a machine.
+
+### Coming soon
+
+🛠️ **Find all references (`Shift+F12`/`gr`)** to list implementations of a given action, guard, actor, or delay.
+🛠️ **Show implementation on hover** of the given implementation of a given action, guard, actor, or delay.
+🛠️ **Jump to state target**
 
 ---
 
@@ -17,23 +23,51 @@ You can install the plugin globally or per project.
 
 ### **📌 Project Installation**
 
-To install the plugin per project, run:
+To install the plugin in your project, simply run:
 
 ```sh
-`npm install --save-dev xstate-tsserver-plugin`
+npm install --save-dev xstate-tsserver
 ```
 
-Then, modify your **`tsconfig.json`**:
+### **📌 Global Installation**
+
+You can also install the plugin globally by running:
+
+```sh
+npm install -g xstate-tsserver
+```
+
+You will also need to add your global node_modules path to tsserver's plugin paths.
+
+For example, in VSCode, you can edit your **`settings.json`** to add the plugin path:
 
 ```json
-{ "compilerOptions": { "plugins": [{ "name": "xstate-tsserver-plugin" }] } }
+{
+  "typescript.tsserver.pluginPaths": ["path/to/global/node_modules"]
+}
+```
+
+💡 **Tip:** You can find your global node_modules path by running:
+
+```sh
+npm root -g
+```
+
+### Plugin activation
+
+Modify your **`tsconfig.json`** to include the plugin:
+
+```json
+{
+  "compilerOptions": {
+    "plugins": [{ "name": "xstate-tsserver" }]
+  }
+}
 ```
 
 Restart the TypeScript server (in VSCode by running **"TypeScript: Restart TS Server"** from the command palette)
 
-### **📌 Global Installation**
-
-TODO
+TODO: find a way to activate the plugin globally
 
 ---
 
@@ -48,7 +82,7 @@ Under any named action, guard or actor within the state machine config, going to
 the definition will navigate to it's implementation within the setup block of
 the machine.
 
-In VSCode, hover over the implementation and press `F12` to navigate to the definition.
+In VSCode, hover over the implementation and press `F12` or `cmd+click` to navigate to the definition.
 
 ---
 
