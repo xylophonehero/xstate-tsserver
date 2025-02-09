@@ -67,7 +67,7 @@ export function findMatchingNode(
       (cap) => cap.name === captureMatch,
     )?.node;
     if (keyNode) {
-      if (position >= keyNode.startIndex && position <= keyNode.endIndex) {
+      if (position >= keyNode.startIndex && position < keyNode.endIndex) {
         if (!returnCaptureMatch) return keyNode;
         const returnNode = match.captures.find(
           (cap) => cap.name === returnCaptureMatch,

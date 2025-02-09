@@ -180,7 +180,7 @@ export const machineActorsQuery = `
     (string (string_fragment) @xstate.actor.name) @xstate.actor
   )
 )
-`
+`;
 
 export const setupDelaysQuery = `
 (pair
@@ -194,7 +194,6 @@ export const setupDelaysQuery = `
   ])
 )
 `;
-
 
 export const machineDelaysQuery = `
 (pair
@@ -218,7 +217,7 @@ export const machineDelaysQuery = `
 		)
   )
 )
-`
+`;
 
 export const setupImplementableQuery = `
 (pair
@@ -231,4 +230,72 @@ export const setupImplementableQuery = `
     (shorthand_property_identifier) @implementation.name @implementation.definition
   ])
 )
-`
+`;
+
+export const stateQuery = `
+(object
+  (pair
+    key: (property_identifier) @initial.key (#eq? @initial.key "initial")
+    value: (string (string_fragment) @xstate.state.initial)
+  )?
+  (pair
+    key: (property_identifier) @states.key (#eq? @states.key "states")
+    value: (
+      (object
+        (pair
+          key: (property_identifier) @xstate.state.name
+          value: (_) @xstate.state.config) @xstate.state
+      )
+    )
+  )
+)
+`;
+
+export const transitionQuery = `
+(pair
+  key: (property_identifier) @transition.key (#match? @transition.key "after|on$")
+  value: (object
+    (pair
+      key: (property_identifier)
+      value: [
+        (string (string_fragment) @transition.target.name) @transition.target
+        (object
+          (pair
+            key: (property_identifier) @transition.target.key
+            value: (string (string_fragment) @transition.target.name) @transition.target
+          )
+        )
+        (array
+          (object
+            (pair
+              key: (property_identifier) @transition.target.key (#eq? @transition.target.key "target")
+              value: (string (string_fragment) @transition.target.name) @transition.target
+            )
+          )
+        )
+      ]
+    )
+  )
+)
+
+(pair
+  key: (property_identifier) @transition.key (#match? @transition.key "onDone|onError")
+  value: [
+    (string (string_fragment) @transition.target.name) @transition.target
+    (object 
+      (pair
+        key: (property_identifier) @transition.target.key
+        value: (string (string_fragment) @transition.target.name) @transition.target
+      )
+    )
+    (array
+      (object 
+        (pair
+          key: (property_identifier) @transition.target.key (#eq? @transition.target.key "target")
+          value: (string (string_fragment) @transition.target.name) @transition.target
+        )
+      )
+    )
+  ]
+)
+`;

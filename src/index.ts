@@ -11,6 +11,9 @@ import {
   getMachineConfigNodes,
   findImplementableInSetup,
   getImplementableInSetupInPosition,
+  getStateConfigAtPosition,
+  getAllChildStateNodes,
+  getTransitionAtPosition,
 } from "./xstate";
 
 function init(modules: {
@@ -130,6 +133,7 @@ function init(modules: {
     // within the setup config
     // If the defintion is a shorthand_property_identifier, then use it's
     // definition for the implementable definition
+    // If used on a transition target node, go to the state which it targets
     proxy.getDefinitionAndBoundSpan = (fileName, position) => {
       const prior = info.languageService.getDefinitionAndBoundSpan(
         fileName,
@@ -146,17 +150,50 @@ function init(modules: {
         machineConfig,
         position,
       );
-      if (type === "unknown") return prior;
+      if (type !== "unknown") {
+        const setupNode = findImplementableInSetup(setupConfig, type, text);
+        if (setupNode) {
+          log(`✅ Found ${type} definition for ${text} in setup`);
+          if (setupNode.type === "shorthand_property_identifier")
+            return info.languageService.getDefinitionAndBoundSpan(
+              fileName,
+              setupNode.startIndex,
+            );
+          return createNodeDefinitionWithTextSpan(fileName, setupNode, node);
+        }
+      }
 
-      const setupNode = findImplementableInSetup(setupConfig, type, text);
-      if (setupNode) {
-        log(`✅ Found ${type} definition for ${text} in setup`);
-        if (setupNode.type === "shorthand_property_identifier")
-          return info.languageService.getDefinitionAndBoundSpan(
+      const transitionNode = getTransitionAtPosition(machineConfig, position);
+      if (transitionNode) {
+        log(`✅ Found transition ${transitionNode.text} at ${position}`);
+
+        const searchChildren = transitionNode.text.startsWith(".");
+        const targetDefinition = searchChildren
+          ? transitionNode.text.slice(1)
+          : transitionNode.text;
+
+        const stateConfigParts = getStateConfigAtPosition(
+          machineConfig,
+          position,
+        );
+
+        const searchNode = stateConfigParts.at(searchChildren ? -1 : -2);
+        if (!searchNode) return prior;
+
+        const childStates = getAllChildStateNodes(searchNode.node);
+
+        const stateTargetNode = childStates.find(
+          (state) => state.name === targetDefinition,
+        );
+
+        if (stateTargetNode) {
+          log(`✅ Found state target ${stateTargetNode.name} at ${position}`);
+          return createNodeDefinitionWithTextSpan(
             fileName,
-            setupNode.startIndex,
+            stateTargetNode.node,
+            transitionNode,
           );
-        return createNodeDefinitionWithTextSpan(fileName, setupNode, node);
+        }
       }
 
       return prior;

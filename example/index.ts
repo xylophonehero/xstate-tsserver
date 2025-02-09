@@ -18,7 +18,7 @@ const sameFileAction = () => {};
 setup({
   types: {} as {
     context: { fooActor: AnyActorRef; anotherFooActor: AnyActorRef };
-    events: { type: "event" };
+    events: { type: "event" } | { type: "event2" } | { type: "event3" };
   },
   actors: {
     simpleActor: fromCallback(() => {}),
@@ -84,14 +84,96 @@ setup({
       invoke: [
         {
           src: "simpleActor",
+          onDone: {
+            target: "b",
+          },
+          onError: "c",
         },
         {
           src: "simpleActor",
+          onDone: [
+            {
+              guard: "simpleGuard",
+              target: "b",
+            },
+            {
+              target: "c",
+            },
+          ],
         },
       ],
       after: {
-        simpleDelay: {},
-        functionDelay: {},
+        simpleDelay: {
+          target: "b",
+        },
+        functionDelay: [
+          {
+            guard: "simpleGuard",
+            target: "b",
+          },
+          {
+            target: "c",
+          },
+        ],
+      },
+      on: {
+        event: {
+          target: "b",
+        },
+        event2: [
+          {
+            guard: "simpleGuard",
+            target: "b",
+          },
+          {
+            target: "c",
+          },
+        ],
+        event3: "b",
+      },
+    },
+    b: {
+      after: {
+        simpleDelay: [
+          {
+            guard: "simpleGuard",
+            target: ".child",
+          },
+          {
+            target: ".child2",
+          },
+        ],
+      },
+      initial: "child",
+      states: {
+        child: {},
+        child2: {},
+      },
+    },
+    c: {
+      on: {
+        event: "deep1.deep2.deep3.deep4",
+      },
+      states: {
+        noInitial: {},
+      },
+    },
+    deep1: {
+      on: {
+        event: ".deep2",
+        event2: ".deep2.deep3",
+        event3: ".deep2.deep3.deep4",
+      },
+      states: {
+        deep2: {
+          states: {
+            deep3: {
+              states: {
+                deep4: {},
+              },
+            },
+          },
+        },
       },
     },
   },

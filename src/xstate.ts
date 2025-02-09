@@ -10,6 +10,8 @@ import {
   setupDelaysQuery,
   setupGuardsQuery,
   setupImplementableQuery,
+  stateQuery,
+  transitionQuery,
 } from "./queries";
 import {
   createParser,
@@ -38,7 +40,7 @@ const getMachineNodes = (rootNode: Parser.SyntaxNode, position: number) => {
     if (
       machineNode &&
       machineNode.startIndex <= position &&
-      position <= machineNode.endIndex
+      position < machineNode.endIndex
     ) {
       for (const capture of match.captures) {
         results[capture.name] = capture.node;
@@ -68,12 +70,12 @@ export function getMachineConfigNodes(
   let location = null;
   if (
     machineConfig.startIndex <= position &&
-    position <= machineConfig.endIndex
+    position < machineConfig.endIndex
   ) {
     location = "machineConfig" as const;
   } else if (
     setupConfig.startIndex <= position &&
-    position <= setupConfig.endIndex
+    position < setupConfig.endIndex
   ) {
     location = "setupConfig" as const;
   }
@@ -234,7 +236,7 @@ export const getImplementableInSetupInPosition = (
       (cap) => cap.name === "implementation.name",
     )?.node;
     if (keyNode) {
-      if (position >= keyNode.startIndex && position <= keyNode.endIndex) {
+      if (position >= keyNode.startIndex && position < keyNode.endIndex) {
         const keyType = match.captures.find((cap) => cap.name === "setup.key")
           ?.node.text;
         const type =
@@ -281,4 +283,114 @@ export const findAllImplementablesInMachine = (
   }
 
   return implementations;
+};
+
+/**
+ * Returns the transition (target) node at the given position
+ */
+export const getTransitionAtPosition = (
+  rootNode: Parser.SyntaxNode,
+  position: number,
+) => {
+  return findMatchingNode(
+    rootNode,
+    position,
+    transitionQuery,
+    "transition.target",
+    "transition.target.name",
+  );
+};
+
+/**
+ * Finds the heirarchy of state configs at the given getTransitionAtPosition
+ * Starts with the machine config and matches each state config along the
+ * position
+ * Must use the machine config as the root node
+ */
+export const getStateConfigAtPosition = (
+  rootNode: Parser.SyntaxNode,
+  position: number,
+) => {
+  const parser = createParser();
+  const queryMatches = new Parser.Query(parser.getLanguage(), stateQuery);
+  const matches = queryMatches.matches(rootNode);
+
+  const stateParts: {
+    node: Parser.SyntaxNode;
+    name: string;
+  }[] = [
+    {
+      node: rootNode,
+      // TODO: Replace with the id if it exists
+      name: "(machine)",
+    },
+  ];
+
+  for (const match of matches) {
+    match.captures.forEach((cap) => {
+      if (
+        cap.name === "xstate.state" &&
+        cap.node.startIndex <= position &&
+        position < cap.node.endIndex
+      ) {
+        const stateName = match.captures.find(
+          (cap) => cap.name === "xstate.state.name",
+        )?.node.text;
+        if (stateName) {
+          stateParts.push({
+            node: cap.node,
+            name: stateName,
+          });
+        }
+      }
+    });
+  }
+
+  return stateParts;
+};
+
+/**
+ * Finds all the child state nodes visible from the root node
+ * Child names will be nested with . separators relative to the root node
+ */
+export const getAllChildStateNodes = (rootNode: Parser.SyntaxNode) => {
+  const parser = createParser();
+  const queryMatches = new Parser.Query(parser.getLanguage(), stateQuery);
+  const matches = queryMatches.matches(rootNode);
+
+  const states: {
+    node: Parser.SyntaxNode;
+    name: string;
+    isInitial: boolean;
+  }[] = [];
+
+  for (const match of matches) {
+    match.captures.forEach((cap) => {
+      if (cap.name === "xstate.state") {
+        const stateName = match.captures.find(
+          (cap) => cap.name === "xstate.state.name",
+        )?.node.text;
+        const anscestorStates = states.filter(
+          (state) =>
+            state.node.startIndex <= cap.node.startIndex &&
+            cap.node.endIndex <= state.node.endIndex,
+        );
+        const parentState = anscestorStates.at(-1);
+        const initialState = match.captures.find(
+          (cap) => cap.name === "xstate.state.initial",
+        )?.node.text;
+        if (stateName) {
+          states.push({
+            node: cap.node,
+            name: [...(parentState ? [parentState.name] : []), stateName].join(
+              ".",
+            ),
+            isInitial: initialState === stateName,
+          });
+        }
+      }
+    });
+  }
+
+  return states;
 };
