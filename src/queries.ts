@@ -27,14 +27,14 @@ export const configActionsQuery = `
   key: (property_identifier) @key
     (#match? @key "actions|entry|exit")
   value: [
-    (array (string (string_fragment)) @xstate.action)
-    (string (string_fragment)) @xstate.action
+    (array (string (string_fragment) @xstate.action.name) @xstate.action)
+    (string (string_fragment) @xstate.action.name) @xstate.action
     (array
       (object
         (pair
           key: (property_identifier) @type_key
             (#eq? @type_key "type")
-          value: (string (string_fragment)) @xstate.action
+          value: (string (string_fragment) @xstate.action.name) @xstate.action
         )
       )
     )
@@ -42,7 +42,7 @@ export const configActionsQuery = `
       (pair
         key: (property_identifier) @type_key
           (#eq? @type_key "type")
-        value: (string (string_fragment)) @xstate.action
+        value: (string (string_fragment) @xstate.action.name) @xstate.action
       )
     )
   ]
@@ -51,12 +51,12 @@ export const configActionsQuery = `
 (call_expression
   function: (identifier) @enqueue (#eq? @enqueue "enqueue")
   arguments: (arguments [ 
-    (string (string_fragment)) @xstate.action
+    (string (string_fragment) @xstate.action.name) @xstate.action
     (object
       (pair
         key: (property_identifier) @type_key
           (#eq? @type_key "type")
-        value: (string (string_fragment)) @xstate.action
+        value: (string (string_fragment) @xstate.action.name) @xstate.action
       )
     )
   ])
@@ -81,12 +81,12 @@ export const configGuardsQuery = `
   key: (property_identifier) @key
     (#eq? @key "guard")
   value: [
-    (string (string_fragment)) @xstate.guard
+    (string (string_fragment) @xstate.guard.name) @xstate.guard
     (object
       (pair
         key: (property_identifier) @type_key
           (#eq? @type_key "type")
-        value: (string (string_fragment)) @xstate.guard
+        value: (string (string_fragment) @xstate.guard.name) @xstate.guard
       )
     )
   ]
@@ -95,12 +95,12 @@ export const configGuardsQuery = `
 (call_expression
   function: (identifier) @check (#match? @check "check|not")
   arguments: (arguments [
-    (string (string_fragment)) @xstate.guard
+    (string (string_fragment) @xstate.guard.name) @xstate.guard
     (object
       (pair
         key: (property_identifier) @type_key
           (#eq? @type_key "type")
-        value: (string (string_fragment)) @xstate.guard
+        value: (string (string_fragment) @xstate.guard.name) @xstate.guard
       )
     )]
   )
@@ -110,12 +110,12 @@ export const configGuardsQuery = `
   function: (identifier) @hog (#match? @hog "and|or")
   arguments: (arguments 
     (array [
-      (string (string_fragment)) @xstate.guard
+      (string (string_fragment) @xstate.guard.name) @xstate.guard
       (object
         (pair
           key: (property_identifier) @type_key
             (#eq? @type_key "type")
-          value: (string (string_fragment)) @xstate.guard
+          value: (string (string_fragment) @xstate.guard.name) @xstate.guard
         )
       )]
     )
@@ -143,14 +143,14 @@ export const configActorsQuery = `
     (object
       (pair
         key: (property_identifier) @invoke.src (#eq? @invoke.src "src")
-        value: (string (string_fragment)) @xstate.actor
+        value: (string (string_fragment) @xstate.actor.name) @xstate.actor
       )
     )
     (array
       (object
         (pair
           key: (property_identifier) @invoke.src (#eq? @invoke.src "src")
-          value: (string (string_fragment)) @xstate.actor
+          value: (string (string_fragment) @xstate.actor.name) @xstate.actor
         )
       )
     )
@@ -177,7 +177,7 @@ export const configDelaysQuery = `
   key: (property_identifier) @key (#eq? @key "after")
   value: (object
     (pair
-      key: (property_identifier) @xstate.delay
+      key: (property_identifier) @xstate.delay @xstate.delay.name
       value: (_)
     )
   )
@@ -189,7 +189,7 @@ export const configDelaysQuery = `
 		(object
 			(pair
 				key: (property_identifier) @event (#eq? @event "delay")
-				value: (string) @xstate.delay
+				value: (string (string_fragment) @xstate.delay.name) @xstate.delay
 			)
 		)
   )

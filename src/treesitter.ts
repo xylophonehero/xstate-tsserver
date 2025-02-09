@@ -51,21 +51,30 @@ export function findAllCaptureMatches(
   return results;
 }
 
-export function isNodeType(
+export function findMatchingNode(
   rootNode: Parser.SyntaxNode,
   position: number,
   queryString: string,
-  idMatch: string,
+  captureMatch: string,
+  returnCaptureMatch?: string,
 ) {
-  const parser = createParser()
+  const parser = createParser();
   const queryMatches = new Parser.Query(parser.getLanguage(), queryString);
   const matches = queryMatches.matches(rootNode);
 
   for (const match of matches) {
-    const keyNode = match.captures.find((cap) => cap.name === idMatch)?.node;
+    const keyNode = match.captures.find(
+      (cap) => cap.name === captureMatch,
+    )?.node;
     if (keyNode) {
       if (position >= keyNode.startIndex && position <= keyNode.endIndex) {
-        return keyNode;
+        if (!returnCaptureMatch) return keyNode;
+        const returnNode = match.captures.find(
+          (cap) => cap.name === returnCaptureMatch,
+        )?.node;
+        if (returnNode) {
+          return returnNode;
+        }
       }
     }
   }

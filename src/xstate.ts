@@ -13,9 +13,8 @@ import {
 import {
   findAllCaptureMatches,
   findCaptureNodeWithText,
-  isNodeType,
+  findMatchingNode,
 } from "./treesitter";
-import { removeQuotes } from "./utils";
 
 /**
  * Find the machine at the given position
@@ -63,62 +62,63 @@ export function getImplementationType(
       node: null;
       text: string;
     } {
-  const actionNode = isNodeType(
+  const actionNode = findMatchingNode(
     machineNode,
     position,
     configActionsQuery,
     "xstate.action",
+    "xstate.action.name",
   );
 
   if (actionNode)
     return {
       type: "action",
       node: actionNode,
-      text: removeQuotes(actionNode.text),
+      text: actionNode.text,
     };
 
-  const actorNode = isNodeType(
+  const actorNode = findMatchingNode(
     machineNode,
     position,
     configActorsQuery,
     "xstate.actor",
+    "xstate.actor.name",
   );
 
   if (actorNode)
     return {
       type: "actor",
       node: actorNode,
-      text: removeQuotes(actorNode.text),
+      text: actorNode.text,
     };
 
-  const guardNode = isNodeType(
+  const guardNode = findMatchingNode(
     machineNode,
     position,
     configGuardsQuery,
     "xstate.guard",
+    "xstate.guard.name",
   );
 
   if (guardNode)
     return {
       type: "guard",
       node: guardNode,
-      text: removeQuotes(guardNode.text),
+      text: guardNode.text,
     };
 
-  const delayNode = isNodeType(
+  const delayNode = findMatchingNode(
     machineNode,
     position,
     configDelaysQuery,
     "xstate.delay",
+    "xstate.delay.name",
   );
   if (delayNode)
     return {
       type: "delay",
       node: delayNode,
-      text:
-        delayNode.type === "property_identifier"
-          ? delayNode.text
-          : removeQuotes(delayNode.text),
+      text: delayNode.text,
     };
 
   return { type: "unknown", node: null, text: "" };

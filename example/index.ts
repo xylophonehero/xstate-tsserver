@@ -1,7 +1,5 @@
 import { and, fromCallback, not, or, raise, sendTo, setup } from "xstate";
-
-const importedAction = () => {};
-const importedGuard = () => true;
+import { importedAction, importedGuard } from "./anotherFile";
 
 setup({
   types: {} as {
