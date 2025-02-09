@@ -22,7 +22,7 @@ export const setupActionsQuery = `
 )
 `;
 
-export const configActionsQuery = `
+export const machineActionsQuery = `
 (pair
   key: (property_identifier) @key
     (#match? @key "actions|entry|exit")
@@ -76,7 +76,7 @@ export const setupGuardsQuery = `
 )
 `;
 
-export const configGuardsQuery = `
+export const machineGuardsQuery = `
 (pair
   key: (property_identifier) @key
     (#eq? @key "guard")
@@ -136,7 +136,7 @@ export const setupActorsQuery = `
 )
 `;
 
-export const configActorsQuery = `
+export const machineActorsQuery = `
 (pair
   key: (property_identifier) @invoke (#eq? @invoke "invoke")
   value: [
@@ -196,7 +196,7 @@ export const setupDelaysQuery = `
 `;
 
 
-export const configDelaysQuery = `
+export const machineDelaysQuery = `
 (pair
   key: (property_identifier) @key (#eq? @key "after")
   value: (object
@@ -217,5 +217,18 @@ export const configDelaysQuery = `
 			)
 		)
   )
+)
+`
+
+export const setupImplementableQuery = `
+(pair
+  key: (property_identifier) @setup.key (#match? @setup.key "actors|actions|guards|delays")
+  value: (object [
+    (pair
+      key: (property_identifier) @implementation.name
+      value: (_) @implementation.definition
+    )
+    (shorthand_property_identifier) @implementation.name @implementation.definition
+  ])
 )
 `

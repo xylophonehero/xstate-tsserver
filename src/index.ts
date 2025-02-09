@@ -1,34 +1,29 @@
 import type { LanguageService, server } from "typescript/lib/tsserverlibrary";
-import { createNodeDefinition } from "./utils";
+import {
+  createNodeDefinitionWithDisplayParts,
+  createNodeDefinitionWithTextSpan,
+  createReferenceDefinition,
+} from "./utils";
 import { getFileRootNode } from "./treesitter";
 import {
-  getImplementationType,
+  findAllImplementablesInMachine,
+  getImplementableInMachine,
   getMachineConfigNodes,
-  getSetupNode,
+  findImplementableInSetup,
+  getImplementableInSetupInPosition,
 } from "./xstate";
 
 function init(modules: {
   typescript: typeof import("typescript/lib/tsserverlibrary");
 }) {
+  // TODO: Figure out how bad it is to use the global typescript module even
+  // though it might be different
   const ts = modules.typescript;
 
   function create(info: server.PluginCreateInfo) {
     // Diagnostic logging
     function log(message: string) {
       info.project.projectService.logger.info(message);
-    }
-
-    function getMachineUnderCursor(fileName: string, position: number) {
-      const program = info.languageService.getProgram();
-      const sourceFile = program?.getSourceFile(fileName);
-      if (!sourceFile) return null;
-
-      const rootNode = getFileRootNode(sourceFile);
-
-      const machineConfigNodes = getMachineConfigNodes(rootNode, position);
-      if (!machineConfigNodes) return null;
-
-      return machineConfigNodes;
     }
 
     log("xstate tsserver loaded");
@@ -43,6 +38,19 @@ function init(modules: {
       proxy[k] = (...args: Array<{}>) => x.apply(info.languageService, args);
     }
 
+    function getMachineAtPosition(fileName: string, position: number) {
+      const program = info.languageService.getProgram();
+      const sourceFile = program?.getSourceFile(fileName);
+      if (!sourceFile) return null;
+
+      const rootNode = getFileRootNode(sourceFile);
+
+      const machineConfigNodes = getMachineConfigNodes(rootNode, position);
+      if (!machineConfigNodes) return null;
+
+      return machineConfigNodes;
+    }
+
     proxy.getQuickInfoAtPosition = (fileName, position) => {
       const prior = info.languageService.getQuickInfoAtPosition(
         fileName,
@@ -55,37 +63,100 @@ function init(modules: {
       return prior;
     };
 
+    // If used on a setup implementable, find the references within the machine
+    // to it
+    // If used on a machine implementable, find the reference within setup
+    // function. If the setup implementable is a shorthand_property_identifier,
+    // then merge in the references at that position
     proxy.findReferences = (fileName, position) => {
       const prior = info.languageService.findReferences(fileName, position);
 
-      // TODO: Figure out if a key inside a setup config and find all the
-      // references. The reverse of getDefinitionAndBoundSpan
+      const machineConfigNodes = getMachineAtPosition(fileName, position);
+      if (!machineConfigNodes) return prior;
 
+      const { machineConfig, setupConfig, location } = machineConfigNodes;
+      if (location === "setupConfig") {
+        const { type, node, text } = getImplementableInSetupInPosition(
+          setupConfig,
+          position,
+        );
+        if (type === "unknown") return prior;
+        log(`✅ Found ${type} implementation for ${text}`);
+        const implementations = findAllImplementablesInMachine(
+          machineConfig,
+          type,
+          text,
+        );
+        if (implementations.length === 0) return prior;
+
+        return [
+          ...(prior ?? []),
+          {
+            definition: createNodeDefinitionWithDisplayParts(fileName, node),
+            references: implementations.map((implementation) =>
+              createReferenceDefinition(fileName, implementation),
+            ),
+          },
+        ];
+      } else if (location === "machineConfig") {
+        const { type, text, node } = getImplementableInMachine(
+          machineConfig,
+          position,
+        );
+        if (type === "unknown") return prior;
+
+        const setupNode = findImplementableInSetup(setupConfig, type, text);
+        if (setupNode) {
+          log(`✅ Found ${type} definition for ${text} in setup`);
+          return [
+            ...(prior ?? []),
+            ...(setupNode.type === "shorthand_property_identifier"
+              ? (info.languageService.findReferences(
+                  fileName,
+                  setupNode.startIndex,
+                ) ?? [])
+              : []),
+            {
+              definition: createNodeDefinitionWithDisplayParts(fileName, node),
+              references: [createReferenceDefinition(fileName, node)],
+            },
+          ];
+        }
+      }
       return prior;
     };
 
+    // If used on a implementable within the machine config, find the definition
+    // within the setup config
+    // If the defintion is a shorthand_property_identifier, then use it's
+    // definition for the implementable definition
     proxy.getDefinitionAndBoundSpan = (fileName, position) => {
       const prior = info.languageService.getDefinitionAndBoundSpan(
         fileName,
         position,
       );
 
-      const machineConfigNodes = getMachineUnderCursor(fileName, position);
+      const machineConfigNodes = getMachineAtPosition(fileName, position);
       if (!machineConfigNodes) return prior;
 
-      const { machineConfig, setupConfig } = machineConfigNodes;
-      const { type, text } = getImplementationType(machineConfig, position);
+      const { machineConfig, setupConfig, location } = machineConfigNodes;
+      if (location !== "machineConfig") return prior;
+
+      const { type, text, node } = getImplementableInMachine(
+        machineConfig,
+        position,
+      );
       if (type === "unknown") return prior;
 
-      const setupNode = getSetupNode(setupConfig, type, text);
+      const setupNode = findImplementableInSetup(setupConfig, type, text);
       if (setupNode) {
-        log(`✅ Found ${type} definition for ${text}`);
+        log(`✅ Found ${type} definition for ${text} in setup`);
         if (setupNode.type === "shorthand_property_identifier")
           return info.languageService.getDefinitionAndBoundSpan(
             fileName,
             setupNode.startIndex,
           );
-        return createNodeDefinition(ts, fileName, setupNode);
+        return createNodeDefinitionWithTextSpan(fileName, setupNode, node);
       }
 
       return prior;

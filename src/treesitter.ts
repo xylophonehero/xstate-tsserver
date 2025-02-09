@@ -9,7 +9,7 @@ export function createParser() {
 }
 
 export function getFileRootNode(sourceFile: SourceFile) {
-  const parser = createParser()
+  const parser = createParser();
   const tree = parser.parse(sourceFile.getFullText());
   return tree.rootNode;
 }
@@ -20,7 +20,7 @@ export function findCaptureNodeWithText(
   captureName: string,
   captureText: string,
 ) {
-  const parser = createParser()
+  const parser = createParser();
   const queryMatches = new Parser.Query(parser.getLanguage(), queryString);
   const matches = queryMatches.matches(rootNode);
 
@@ -38,7 +38,7 @@ export function findAllCaptureMatches(
   rootNode: Parser.SyntaxNode,
   queryString: string,
 ) {
-  const parser = createParser()
+  const parser = createParser();
   const queryMatches = new Parser.Query(parser.getLanguage(), queryString);
   const matches = queryMatches.matches(rootNode);
 

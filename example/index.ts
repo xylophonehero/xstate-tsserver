@@ -13,6 +13,8 @@ import {
 } from "xstate";
 import { importedAction, importedGuard } from "./anotherFile";
 
+const sameFileAction = () => {};
+
 setup({
   types: {} as {
     context: { fooActor: AnyActorRef; anotherFooActor: AnyActorRef };
@@ -24,6 +26,8 @@ setup({
   },
   actions: {
     spawn: spawnChild("simpleActor"),
+    aliasedAction: importedAction,
+    sameFileAction,
     importedAction,
     simpleAction: () => {},
     actionWithParams: (_, _params: string) => {},
@@ -49,6 +53,8 @@ setup({
     spawnChild("actorWithInput", {
       input: { foo: "bar" },
     }),
+    "aliasedAction",
+    "sameFileAction",
     "importedAction",
     "simpleAction",
     {
