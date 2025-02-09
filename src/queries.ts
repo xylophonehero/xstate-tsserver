@@ -235,17 +235,12 @@ export const setupImplementableQuery = `
 export const stateQuery = `
 (object
   (pair
-    key: (property_identifier) @initial.key (#eq? @initial.key "initial")
-    value: (string (string_fragment) @xstate.state.initial)
-  )?
-  (pair
     key: (property_identifier) @states.key (#eq? @states.key "states")
-    value: (
-      (object
-        (pair
-          key: (property_identifier) @xstate.state.name
-          value: (_) @xstate.state.config) @xstate.state
-      )
+    value: (object
+      (pair
+        key: (property_identifier) @xstate.state.name
+        value: (object) @xstate.state.config
+      ) @xstate.state
     )
   )
 )

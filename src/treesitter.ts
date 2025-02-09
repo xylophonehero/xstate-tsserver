@@ -51,6 +51,27 @@ export function findAllCaptureMatches(
   return results;
 }
 
+export function findFirstMatchingNode(
+  rootNode: Parser.SyntaxNode,
+  queryString: string,
+  captureMatch: string,
+) {
+  const parser = createParser();
+  const queryMatches = new Parser.Query(parser.getLanguage(), queryString);
+  const matches = queryMatches.matches(rootNode);
+
+  for (const match of matches) {
+    const keyNode = match.captures.find(
+      (cap) => cap.name === captureMatch,
+    )?.node;
+    if (keyNode) {
+      return keyNode;
+    }
+  }
+
+  return null;
+}
+
 export function findMatchingNode(
   rootNode: Parser.SyntaxNode,
   position: number,

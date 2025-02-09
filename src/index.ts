@@ -3,6 +3,7 @@ import {
   createNodeDefinitionWithDisplayParts,
   createNodeDefinitionWithTextSpan,
   createReferenceDefinition,
+  getTransitionType,
 } from "./utils";
 import { getFileRootNode } from "./treesitter";
 import {
@@ -150,6 +151,7 @@ function init(modules: {
         machineConfig,
         position,
       );
+
       if (type !== "unknown") {
         const setupNode = findImplementableInSetup(setupConfig, type, text);
         if (setupNode) {
@@ -164,35 +166,70 @@ function init(modules: {
       }
 
       const transitionNode = getTransitionAtPosition(machineConfig, position);
+
       if (transitionNode) {
+        const { target, type } = getTransitionType(transitionNode.text);
         log(`✅ Found transition ${transitionNode.text} at ${position}`);
 
-        const searchChildren = transitionNode.text.startsWith(".");
-        const targetDefinition = searchChildren
-          ? transitionNode.text.slice(1)
-          : transitionNode.text;
+        if (type === "absolute") {
+          const states = getAllChildStateNodes(machineConfig);
+          const [idTarget, ...rest] = target.split(".");
+          const relativeTarget = rest.join(".");
+          const idTargetNode = states.find((state) => state.id === idTarget);
+          if (idTargetNode) {
+            // If just a pure id, then go to the state
+            if (relativeTarget === "") {
+              log(`✅ Found state target ${idTargetNode.name} at ${position}`);
+              return createNodeDefinitionWithTextSpan(
+                fileName,
+                idTargetNode.node,
+                transitionNode,
+              );
+            } else {
+              // If more after . then run the state children search
+              const childStates = getAllChildStateNodes(idTargetNode.node);
 
-        const stateConfigParts = getStateConfigAtPosition(
-          machineConfig,
-          position,
-        );
+              const stateTargetNode = childStates.find(
+                (state) => state.name === relativeTarget,
+              );
 
-        const searchNode = stateConfigParts.at(searchChildren ? -1 : -2);
-        if (!searchNode) return prior;
-
-        const childStates = getAllChildStateNodes(searchNode.node);
-
-        const stateTargetNode = childStates.find(
-          (state) => state.name === targetDefinition,
-        );
-
-        if (stateTargetNode) {
-          log(`✅ Found state target ${stateTargetNode.name} at ${position}`);
-          return createNodeDefinitionWithTextSpan(
-            fileName,
-            stateTargetNode.node,
-            transitionNode,
+              if (stateTargetNode) {
+                log(
+                  `✅ Found state target ${stateTargetNode.name} at ${position}`,
+                );
+                return createNodeDefinitionWithTextSpan(
+                  fileName,
+                  stateTargetNode.node,
+                  transitionNode,
+                );
+              }
+            }
+          }
+        } else {
+          const stateConfigParts = getStateConfigAtPosition(
+            machineConfig,
+            position,
           );
+
+          const searchNode = stateConfigParts.at(
+            type === "relativeChildren" ? -1 : -2,
+          );
+          if (!searchNode) return prior;
+
+          const childStates = getAllChildStateNodes(searchNode.node);
+
+          const stateTargetNode = childStates.find(
+            (state) => state.name === target,
+          );
+
+          if (stateTargetNode) {
+            log(`✅ Found state target ${stateTargetNode.name} at ${position}`);
+            return createNodeDefinitionWithTextSpan(
+              fileName,
+              stateTargetNode.node,
+              transitionNode,
+            );
+          }
         }
       }
 

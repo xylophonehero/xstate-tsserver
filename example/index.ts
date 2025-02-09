@@ -42,6 +42,7 @@ setup({
     functionDelay: () => 1000,
   },
 }).createMachine({
+  id: "root",
   context: ({ spawn }) => ({
     fooActor: spawn("simpleActor"),
     anotherFooActor: spawn("actorWithInput", {
@@ -147,7 +148,12 @@ setup({
       initial: "child",
       states: {
         child: {},
-        child2: {},
+        child2: {
+          on: {
+            event: "#root",
+            event2: "#root.b",
+          },
+        },
       },
     },
     c: {
@@ -159,17 +165,31 @@ setup({
       },
     },
     deep1: {
+      id: "deep1",
       on: {
         event: ".deep2",
         event2: ".deep2.deep3",
         event3: ".deep2.deep3.deep4",
       },
+      after: {
+        simpleDelay: {
+          target: "#deepest",
+        },
+        functionDelay: {
+          target: "#deep1.deep2",
+        },
+      },
       states: {
         deep2: {
+          after: {
+            1000: {},
+          },
           states: {
             deep3: {
               states: {
-                deep4: {},
+                deep4: {
+                  id: "deepest",
+                },
               },
             },
           },
@@ -181,12 +201,15 @@ setup({
     event: [
       {
         guard: "importedGuard",
+        target: ".idle",
       },
       {
         guard: "simpleGuard",
+        target: "#root.idle",
       },
       {
         guard: { type: "guardWithParams", params: "hello" },
+        target: ".deep1.deep2.deep3.deep4",
       },
       {
         guard: not("simpleGuard"),

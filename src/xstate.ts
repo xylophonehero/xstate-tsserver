@@ -318,11 +318,12 @@ export const getStateConfigAtPosition = (
   const stateParts: {
     node: Parser.SyntaxNode;
     name: string;
+    id: string;
   }[] = [
     {
       node: rootNode,
-      // TODO: Replace with the id if it exists
-      name: "(machine)",
+      name: "",
+      id: getStateId(rootNode),
     },
   ];
 
@@ -336,10 +337,18 @@ export const getStateConfigAtPosition = (
         const stateName = match.captures.find(
           (cap) => cap.name === "xstate.state.name",
         )?.node.text;
+
+        const stateConfig = match.captures.find(
+          (cap) => cap.name === "xstate.state.config",
+        )?.node;
+
+        const stateId = stateConfig ? getStateId(stateConfig) : "";
+
         if (stateName) {
           stateParts.push({
             node: cap.node,
             name: stateName,
+            id: stateId,
           });
         }
       }
@@ -350,7 +359,7 @@ export const getStateConfigAtPosition = (
 };
 
 /**
- * Finds all the child state nodes visible from the root node
+ * Finds all the child state nodes visible from the root node including itself
  * Child names will be nested with . separators relative to the root node
  */
 export const getAllChildStateNodes = (rootNode: Parser.SyntaxNode) => {
@@ -361,8 +370,14 @@ export const getAllChildStateNodes = (rootNode: Parser.SyntaxNode) => {
   const states: {
     node: Parser.SyntaxNode;
     name: string;
-    isInitial: boolean;
-  }[] = [];
+    id: string;
+  }[] = [
+    {
+      node: rootNode,
+      name: "",
+      id: getStateId(rootNode),
+    },
+  ];
 
   for (const match of matches) {
     match.captures.forEach((cap) => {
@@ -376,16 +391,18 @@ export const getAllChildStateNodes = (rootNode: Parser.SyntaxNode) => {
             cap.node.endIndex <= state.node.endIndex,
         );
         const parentState = anscestorStates.at(-1);
-        const initialState = match.captures.find(
-          (cap) => cap.name === "xstate.state.initial",
-        )?.node.text;
+        const stateConfig = match.captures.find(
+          (cap) => cap.name === "xstate.state.config",
+        )?.node;
+        const stateId = stateConfig ? getStateId(stateConfig) : "";
         if (stateName) {
           states.push({
             node: cap.node,
-            name: [...(parentState ? [parentState.name] : []), stateName].join(
-              ".",
-            ),
-            isInitial: initialState === stateName,
+            name: [
+              ...(parentState?.name ? [parentState.name] : []),
+              stateName,
+            ].join("."),
+            id: stateId,
           });
         }
       }
@@ -394,3 +411,20 @@ export const getAllChildStateNodes = (rootNode: Parser.SyntaxNode) => {
 
   return states;
 };
+
+/**
+ * From a state config node, find the id by iterating through the object
+ * properties
+ */
+function getStateId(stateConfigNode: Parser.SyntaxNode) {
+  if (stateConfigNode.type !== "object") return "";
+  for (const pair of stateConfigNode.namedChildren) {
+    const [key, value] = pair.namedChildren;
+    if (key.type === "property_identifier" && key.text === "id") {
+      if (value.type === "string") {
+        return value.namedChildren[0].text;
+      }
+    }
+  }
+  return "";
+}
