@@ -1,15 +1,29 @@
-import { and, fromCallback, not, or, raise, sendTo, setup } from "xstate";
+import {
+  and,
+  AnyActorRef,
+  AnyEventObject,
+  assign,
+  fromCallback,
+  not,
+  or,
+  raise,
+  sendTo,
+  setup,
+  spawnChild,
+} from "xstate";
 import { importedAction, importedGuard } from "./anotherFile";
 
 setup({
   types: {} as {
-    context: {};
+    context: { fooActor: AnyActorRef; anotherFooActor: AnyActorRef };
     events: { type: "event" };
   },
   actors: {
     simpleActor: fromCallback(() => {}),
+    actorWithInput: fromCallback<AnyEventObject, { foo: "bar" }>(() => {}),
   },
   actions: {
+    spawn: spawnChild("simpleActor"),
     importedAction,
     simpleAction: () => {},
     actionWithParams: (_, _params: string) => {},
@@ -24,7 +38,17 @@ setup({
     functionDelay: () => 1000,
   },
 }).createMachine({
+  context: ({ spawn }) => ({
+    fooActor: spawn("simpleActor"),
+    anotherFooActor: spawn("actorWithInput", {
+      input: { foo: "bar" },
+    }),
+  }),
   entry: [
+    spawnChild("simpleActor"),
+    spawnChild("actorWithInput", {
+      input: { foo: "bar" },
+    }),
     "importedAction",
     "simpleAction",
     {
@@ -33,6 +57,7 @@ setup({
     },
   ],
   exit: [
+    spawnChild("simpleActor"),
     "importedAction",
     "simpleAction",
     {
@@ -104,6 +129,14 @@ setup({
             type: "actionWithParams",
             params: "hello",
           },
+          spawnChild("simpleActor"),
+          assign({
+            fooActor: ({ spawn }) => spawn("simpleActor"),
+            anotherFooActor: ({ spawn }) =>
+              spawn("actorWithInput", {
+                input: { foo: "bar" },
+              }),
+          }),
         ],
       },
     ],

@@ -156,6 +156,30 @@ export const configActorsQuery = `
     )
   ]
 )
+
+(pair
+  key: (property_identifier) @key
+    (#match? @key "actions|entry|exit")
+  value: [
+    (call_expression
+      function: (identifier) @action.spawnChild (#eq? @action.spawnChild "spawnChild")
+      arguments: (arguments (string (string_fragment) @xstate.actor.name)  @xstate.actor)
+    )
+    (array 
+      (call_expression
+        function: (identifier) @action.spawnChild (#eq? @action.spawnChild "spawnChild")
+        arguments: (arguments (string (string_fragment) @xstate.actor.name)  @xstate.actor)
+      )
+    )
+  ]
+)
+
+(call_expression
+  function: (identifier) @xstate.spawn (#eq? @xstate.spawn "spawn")
+  arguments: (arguments
+    (string (string_fragment) @xstate.actor.name) @xstate.actor
+  )
+)
 `
 
 export const setupDelaysQuery = `
