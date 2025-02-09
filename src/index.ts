@@ -80,6 +80,11 @@ function init(modules: {
       const setupNode = getSetupNode(setupConfig, type, text);
       if (setupNode) {
         log(`✅ Found ${type} definition for ${text}`);
+        if (setupNode.type === "shorthand_property_identifier")
+          return info.languageService.getDefinitionAndBoundSpan(
+            fileName,
+            setupNode.startIndex,
+          );
         return createNodeDefinition(ts, fileName, setupNode);
       }
 
