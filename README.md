@@ -8,12 +8,17 @@ This **TypeScript TSServer plugin** provides **better navigation for state machi
 ## **Features**
 
 ✅ **Go to Definition (`F12`/`gd`)** to jump from a given action, guard, actor, or delay to its definition within the setup block of a machine.
+✅ **Find all references (`Shift+F12`/`gr`)** to list implementations of a given action, guard, actor, or delay.
+✅ **Jump to state target (`F12`/`gd`)** from a transition target to the state
 
 ### Coming soon
 
-🛠️ **Find all references (`Shift+F12`/`gr`)** to list implementations of a given action, guard, actor, or delay.
 🛠️ **Show implementation on hover** of the given implementation of a given action, guard, actor, or delay.
-🛠️ **Jump to state target**
+🛠️ **Diagnostics on invalid states** show errors when the state target or
+initial state is invalid. If the initial state does not exist then show a
+warning
+🛠️ **Code actions for building a state machine** to add states, transitions,
+actions, guards, etc.
 
 ---
 
@@ -76,13 +81,24 @@ TODO: find a way to activate the plugin globally
 XState tsserver extends the regular tsserver definitions to make navigating
 around a state machine much easier
 
-### Go to Definition
+### Go to implementation definition
 
-Under any named action, guard or actor within the state machine config, going to
-the definition will navigate to it's implementation within the setup block of
-the machine.
+Under any named action, guard, actor or delay within the machine config, go to definition will navigate to it's implementation within the setup block of the machine.
 
-In VSCode, hover over the implementation and press `F12` or `cmd+click` to navigate to the definition.
+💡 **Tip:** In VSCode, hover over the implementation and press `F12` or `cmd+click` to navigate to the definition.
+
+### Find implementation references
+
+Under any named action, guard, actor or delay within the machine config, find all references will navigate to it's implementation within the setup block of the machine and show other uses of it in the machine config
+
+💡 **Tip:** In VSCode, hover over the implementation and press `shift+F12` to navigate to the definition.
+
+### Jump to state target
+
+Under any state target within the machine config, go to definition will navigate
+to that target state
+
+💡 **Tip:** In VSCode, hover over the implementation and press `F12` or `cmd+click` to navigate to the definition.
 
 ---
 
