@@ -274,7 +274,7 @@ export const transitionQuery = `
 )
 
 (pair
-  key: (property_identifier) @transition.key (#match? @transition.key "onDone|onError")
+  key: (property_identifier) @transition.key (#match? @transition.key "onDone|onError|always")
   value: [
     (string (string_fragment) @transition.target.name) @transition.target
     (object 

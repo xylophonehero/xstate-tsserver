@@ -155,6 +155,14 @@ setup({
           },
         },
       },
+      always: [
+        {
+          target: "deep1",
+        },
+        {
+          target: "deep1.deep2",
+        },
+      ],
     },
     c: {
       on: {
@@ -162,6 +170,9 @@ setup({
       },
       states: {
         noInitial: {},
+      },
+      always: {
+        target: "deep1",
       },
     },
     deep1: {
