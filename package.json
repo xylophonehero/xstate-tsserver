@@ -1,7 +1,7 @@
 {
   "name": "xstate-tsserver",
   "description": "XState tsserver plugin for easier navigation in state machines",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "license": "MIT",
   "main": "./out",
   "scripts": {
