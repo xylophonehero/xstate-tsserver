@@ -13,7 +13,7 @@ import {
   findImplementableInSetup,
   getImplementableInSetupInPosition,
   getStateConfigAtPosition,
-  getAllChildStateNodes,
+  getAllDescendantStateNodes,
   getTransitionAtPosition,
 } from "./xstate";
 
@@ -172,7 +172,7 @@ function init(modules: {
         log(`✅ Found transition ${transitionNode.text} at ${position}`);
 
         if (type === "absolute") {
-          const states = getAllChildStateNodes(machineConfig);
+          const states = getAllDescendantStateNodes(machineConfig);
           const [idTarget, ...rest] = target.split(".");
           const relativeTarget = rest.join(".");
           const idTargetNode = states.find((state) => state.id === idTarget);
@@ -187,7 +187,7 @@ function init(modules: {
               );
             } else {
               // If more after . then run the state children search
-              const childStates = getAllChildStateNodes(idTargetNode.node);
+              const childStates = getAllDescendantStateNodes(idTargetNode.node);
 
               const stateTargetNode = childStates.find(
                 (state) => state.name === relativeTarget,
@@ -216,7 +216,7 @@ function init(modules: {
           );
           if (!searchNode) return prior;
 
-          const childStates = getAllChildStateNodes(searchNode.node);
+          const childStates = getAllDescendantStateNodes(searchNode.node);
 
           const stateTargetNode = childStates.find(
             (state) => state.name === target,

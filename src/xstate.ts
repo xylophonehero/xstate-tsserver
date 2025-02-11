@@ -359,10 +359,10 @@ export const getStateConfigAtPosition = (
 };
 
 /**
- * Finds all the child state nodes visible from the root node including itself
+ * Finds all the descendant state nodes visible from the root node including itself
  * Child names will be nested with . separators relative to the root node
  */
-export const getAllChildStateNodes = (rootNode: Parser.SyntaxNode) => {
+export const getAllDescendantStateNodes = (rootNode: Parser.SyntaxNode) => {
   const parser = createParser();
   const queryMatches = new Parser.Query(parser.getLanguage(), stateQuery);
   const matches = queryMatches.matches(rootNode);
@@ -420,6 +420,7 @@ function getStateId(stateConfigNode: Parser.SyntaxNode) {
   if (stateConfigNode.type !== "object") return "";
   for (const pair of stateConfigNode.namedChildren) {
     const [key, value] = pair.namedChildren;
+    if (!key || !value) continue;
     if (key.type === "property_identifier" && key.text === "id") {
       if (value.type === "string") {
         return value.namedChildren[0].text;
