@@ -49,6 +49,11 @@ setup({
       input: { foo: "bar" },
     }),
   }),
+  always: [
+    {
+      target: "",
+    },
+  ],
   entry: [
     spawnChild("simpleActor"),
     spawnChild("actorWithInput", {
@@ -98,7 +103,7 @@ setup({
               target: "b",
             },
             {
-              target: "c",
+              target: "",
             },
           ],
         },
@@ -141,7 +146,7 @@ setup({
             target: ".child",
           },
           {
-            target: ".child2",
+            target: "",
           },
         ],
       },
@@ -157,7 +162,7 @@ setup({
       },
       always: [
         {
-          target: "deep1",
+          target: "",
         },
         {
           target: "deep1.deep2",
@@ -193,7 +198,7 @@ setup({
       states: {
         deep2: {
           after: {
-            1000: {},
+            1000: { target: ".deep3" },
           },
           states: {
             deep3: {

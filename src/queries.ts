@@ -253,18 +253,18 @@ export const transitionQuery = `
     (pair
       key: (_)
       value: [
-        (string (string_fragment) @transition.target.name) @transition.target
+        (string) @transition.target
         (object
           (pair
             key: (property_identifier) @transition.target.key
-            value: (string (string_fragment) @transition.target.name) @transition.target
+            value: (string) @transition.target
           )
         )
         (array
           (object
             (pair
               key: (property_identifier) @transition.target.key (#eq? @transition.target.key "target")
-              value: (string (string_fragment) @transition.target.name) @transition.target
+              value: (string) @transition.target
             )
           )
         )
@@ -276,18 +276,18 @@ export const transitionQuery = `
 (pair
   key: (property_identifier) @transition.key (#match? @transition.key "onDone|onError|always")
   value: [
-    (string (string_fragment) @transition.target.name) @transition.target
+    (string) @transition.target
     (object
       (pair
         key: (property_identifier) @transition.target.key
-        value: (string (string_fragment) @transition.target.name) @transition.target
+        value: (string) @transition.target
       )
     )
     (array
       (object
         (pair
           key: (property_identifier) @transition.target.key (#eq? @transition.target.key "target")
-          value: (string (string_fragment) @transition.target.name) @transition.target
+          value: (string) @transition.target
         )
       )
     )

@@ -18,6 +18,7 @@ import {
   findCaptureNodeWithText,
   findMatchingNode,
 } from "./treesitter";
+import { TransitionType } from "./utils";
 
 /**
  * Finds the machine at the given position and returns all capture groups within
@@ -285,6 +286,11 @@ export const findAllImplementablesInMachine = (
   return implementations;
 };
 
+interface TransitionTarget {
+  node: Parser.SyntaxNode;
+  text: string;
+}
+
 /**
  * Returns the transition (target) node at the given position
  */
@@ -292,14 +298,25 @@ export const getTransitionAtPosition = (
   rootNode: Parser.SyntaxNode,
   position: number,
 ) => {
-  return findMatchingNode(
+  const node = findMatchingNode(
     rootNode,
     position,
     transitionQuery,
     "transition.target",
-    "transition.target.name",
   );
+  const text = node?.firstNamedChild?.text;
+
+  return {
+    node,
+    text,
+  };
 };
+
+interface StateConfig {
+  node: Parser.SyntaxNode;
+  name: string;
+  id: string;
+}
 
 /**
  * Finds the heirarchy of state configs at the given getTransitionAtPosition
@@ -315,11 +332,7 @@ export const getStateConfigAtPosition = (
   const queryMatches = new Parser.Query(parser.getLanguage(), stateQuery);
   const matches = queryMatches.matches(rootNode);
 
-  const stateParts: {
-    node: Parser.SyntaxNode;
-    name: string;
-    id: string;
-  }[] = [
+  const stateParts: StateConfig[] = [
     {
       node: rootNode,
       name: "",
@@ -358,6 +371,17 @@ export const getStateConfigAtPosition = (
   return stateParts;
 };
 
+export const getCurrentStateAtPosition = (
+  rootNode: Parser.SyntaxNode,
+  position: number,
+) => {
+  const stateConfigParts = getStateConfigAtPosition(rootNode, position);
+  return stateConfigParts
+    .slice(1)
+    .map((state) => state.name)
+    .join(".");
+};
+
 /**
  * Finds all the descendant state nodes visible from the root node including itself
  * Child names will be nested with . separators relative to the root node
@@ -367,11 +391,7 @@ export const getAllDescendantStateNodes = (rootNode: Parser.SyntaxNode) => {
   const queryMatches = new Parser.Query(parser.getLanguage(), stateQuery);
   const matches = queryMatches.matches(rootNode);
 
-  const states: {
-    node: Parser.SyntaxNode;
-    name: string;
-    id: string;
-  }[] = [
+  const states: StateConfig[] = [
     {
       node: rootNode,
       name: "",
@@ -428,4 +448,68 @@ function getStateId(stateConfigNode: Parser.SyntaxNode) {
     }
   }
   return "";
+}
+
+export function getAllStateTargets(
+  currentState: string,
+  stateNodes: StateConfig[],
+) {
+  const targets = [];
+  for (const state of stateNodes) {
+    const isCurrentState = state.name === currentState;
+    // First figure out the ids
+    if (state.id) {
+      targets.push({
+        type: "absolute",
+        sortText: getStateSortText("absolute", state.id, isCurrentState),
+        targetId: `#${state.id}`,
+        node: state.node,
+      });
+      // TODO: push all children of this state
+    }
+
+    if (state.name === "") continue;
+
+    // Handle child states
+    if (state.name.startsWith(currentState) && !isCurrentState) {
+      const targetId = state.name.slice(
+        currentState === "" ? 0 : currentState.length + 1,
+      );
+      targets.push({
+        type: "relativeChildren",
+        sortText: getStateSortText("relativeChildren", targetId),
+        targetId: `.${targetId}`,
+        node: state.node,
+      });
+    }
+
+    // Handle sibling states
+    if (currentState === "") continue;
+
+    const parentState = currentState.split(".").slice(0, -1).join(".");
+    if (state.name.startsWith(parentState)) {
+      const targetId = state.name.slice(parentState.length);
+      targets.push({
+        type: "relative",
+        sortText: getStateSortText("relative", targetId, isCurrentState),
+        targetId: targetId,
+        node: state.node,
+      });
+    }
+  }
+  return targets;
+}
+
+const stateSortTextMap = {
+  relativeChildren: 1,
+  absolute: 2,
+  relative: 0,
+};
+
+function getStateSortText(
+  transitionType: TransitionType,
+  stateName: string,
+  isCurrentState?: boolean,
+) {
+  return `${isCurrentState ? "z" : ""}${stateName.split(".").length - 1}${stateSortTextMap[transitionType]}`;
 }

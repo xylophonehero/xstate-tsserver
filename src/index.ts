@@ -1,4 +1,8 @@
-import type { LanguageService, server } from "typescript/lib/tsserverlibrary";
+import {
+  ScriptElementKind,
+  type LanguageService,
+  type server,
+} from "typescript/lib/tsserverlibrary";
 import {
   createNodeDefinitionWithDisplayParts,
   createNodeDefinitionWithTextSpan,
@@ -15,6 +19,8 @@ import {
   getStateConfigAtPosition,
   getAllDescendantStateNodes,
   getTransitionAtPosition,
+  getCurrentStateAtPosition,
+  getAllStateTargets,
 } from "./xstate";
 
 function init(modules: {
@@ -165,11 +171,12 @@ function init(modules: {
         }
       }
 
-      const transitionNode = getTransitionAtPosition(machineConfig, position);
+      const { node: transitionNode, text: transitionText } =
+        getTransitionAtPosition(machineConfig, position);
 
-      if (transitionNode) {
-        const { target, type } = getTransitionType(transitionNode.text);
-        log(`✅ Found transition ${transitionNode.text} at ${position}`);
+      if (transitionNode && transitionText) {
+        const { target, type } = getTransitionType(transitionText);
+        log(`✅ Found transition ${transitionText} at ${position}`);
 
         if (type === "absolute") {
           const states = getAllDescendantStateNodes(machineConfig);
@@ -235,6 +242,70 @@ function init(modules: {
 
       return prior;
     };
+
+    proxy.getCompletionsAtPosition = (
+      fileName,
+      position,
+      options,
+      formatSettings,
+    ) => {
+      const prior = info.languageService.getCompletionsAtPosition(
+        fileName,
+        position,
+        options,
+        formatSettings,
+      );
+      log(`get completions at position ${position}`);
+
+      const machineConfigNodes = getMachineAtPosition(fileName, position);
+      if (!machineConfigNodes) return prior;
+
+      const { machineConfig, location } = machineConfigNodes;
+      if (location !== "machineConfig") return prior;
+
+      const { node: transitionNode, text: transitionText } =
+        getTransitionAtPosition(machineConfig, position);
+
+      if (transitionNode) {
+        log(
+          `✅ Found transition ${transitionText ?? "(empty)"} at ${position}`,
+        );
+
+        // Get all state nodes
+        const states = getAllDescendantStateNodes(machineConfig);
+        const currentStateName = getCurrentStateAtPosition(
+          machineConfig,
+          position,
+        );
+
+        const stateTargets = getAllStateTargets(currentStateName, states);
+
+        console.log(
+          stateTargets
+            .map((target) =>
+              JSON.stringify({
+                name: target.targetId,
+                sortText: target.sortText,
+              }),
+            )
+            .join("\n"),
+        );
+
+        return {
+          isGlobalCompletion: false,
+          isMemberCompletion: true,
+          isNewIdentifierLocation: false,
+          entries: stateTargets.map((target) => ({
+            name: target.targetId,
+            kind: ScriptElementKind.string,
+            sortText: target.sortText,
+          })),
+        };
+      }
+
+      return prior;
+    };
+
 
     return proxy;
   }

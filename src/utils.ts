@@ -68,7 +68,7 @@ export function createReferenceDefinition(
   };
 }
 
-type TransitionType =
+export type TransitionType =
   // A string made up of words separated by dots
   | "relative"
   // A string made up of words separated by dots and starting with a dot
