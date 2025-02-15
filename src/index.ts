@@ -276,6 +276,7 @@ function init(modules: {
       );
 
       if (transitionObject) {
+        const { node: transitionNode } = transitionObject;
         log(`✅ Found transition at ${position}`);
         const machineStates = getAllDescendantStateObjects(machineConfig);
 
@@ -293,6 +294,10 @@ function init(modules: {
           isMemberCompletion: true,
           isNewIdentifierLocation: false,
           entries: stateTargets.map((target) => ({
+            replacementSpan: {
+              start: transitionNode.startIndex + 1,
+              length: transitionNode.endIndex - transitionNode.startIndex - 2,
+            },
             name: target.transitionName,
             kind: ScriptElementKind.string,
             sortText: target.sortText,
