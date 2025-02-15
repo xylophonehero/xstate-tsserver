@@ -17,7 +17,7 @@ import {
   findImplementableInSetup,
   getImplementableInSetupInPosition,
   getStateConfigAtPosition,
-  getAllDescendantStateNodes,
+  getAllDescendantStateObjects,
   getTransitionAtPosition,
   getCurrentStateAtPosition,
   getAllStateTargets,
@@ -179,7 +179,7 @@ function init(modules: {
         log(`✅ Found transition ${transitionText} at ${position}`);
 
         if (type === "absolute") {
-          const states = getAllDescendantStateNodes(machineConfig);
+          const states = getAllDescendantStateObjects(machineConfig);
           const [idTarget, ...rest] = target.split(".");
           const relativeTarget = rest.join(".");
           const idTargetNode = states.find((state) => state.id === idTarget);
@@ -194,15 +194,15 @@ function init(modules: {
               );
             } else {
               // If more after . then run the state children search
-              const childStates = getAllDescendantStateNodes(idTargetNode.node);
+              const childStates = getAllDescendantStateObjects(idTargetNode.node);
 
               const stateTargetNode = childStates.find(
-                (state) => state.name === relativeTarget,
+                (state) => state.path === relativeTarget,
               );
 
               if (stateTargetNode) {
                 log(
-                  `✅ Found state target ${stateTargetNode.name} at ${position}`,
+                  `✅ Found state target ${stateTargetNode.path} at ${position}`,
                 );
                 return createNodeDefinitionWithTextSpan(
                   fileName,
@@ -223,14 +223,14 @@ function init(modules: {
           );
           if (!searchNode) return prior;
 
-          const childStates = getAllDescendantStateNodes(searchNode.node);
+          const childStates = getAllDescendantStateObjects(searchNode.node);
 
           const stateTargetNode = childStates.find(
-            (state) => state.name === target,
+            (state) => state.path === target,
           );
 
           if (stateTargetNode) {
-            log(`✅ Found state target ${stateTargetNode.name} at ${position}`);
+            log(`✅ Found state target ${stateTargetNode.path} at ${position}`);
             return createNodeDefinitionWithTextSpan(
               fileName,
               stateTargetNode.node,
@@ -272,24 +272,13 @@ function init(modules: {
         );
 
         // Get all state nodes
-        const states = getAllDescendantStateNodes(machineConfig);
+        const states = getAllDescendantStateObjects(machineConfig);
         const currentStateName = getCurrentStateAtPosition(
           machineConfig,
           position,
         );
 
         const stateTargets = getAllStateTargets(currentStateName, states);
-
-        console.log(
-          stateTargets
-            .map((target) =>
-              JSON.stringify({
-                name: target.targetId,
-                sortText: target.sortText,
-              }),
-            )
-            .join("\n"),
-        );
 
         return {
           isGlobalCompletion: false,

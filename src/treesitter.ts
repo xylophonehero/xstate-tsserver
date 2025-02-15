@@ -102,3 +102,11 @@ export function findMatchingNode(
 
   return null;
 }
+
+export function getAllCapturesOfMatch(match: Parser.QueryMatch) {
+  const results: Record<string, Parser.SyntaxNode> = {};
+  for (const capture of match.captures) {
+    results[capture.name] = capture.node;
+  }
+  return results;
+}

@@ -17,6 +17,7 @@ import {
   createParser,
   findCaptureNodeWithText,
   findMatchingNode,
+  getAllCapturesOfMatch,
 } from "./treesitter";
 import { TransitionType } from "./utils";
 
@@ -312,10 +313,11 @@ export const getTransitionAtPosition = (
   };
 };
 
-interface StateConfig {
+interface StateObject {
   node: Parser.SyntaxNode;
   name: string;
   id: string;
+  path: string;
 }
 
 /**
@@ -332,11 +334,12 @@ export const getStateConfigAtPosition = (
   const queryMatches = new Parser.Query(parser.getLanguage(), stateQuery);
   const matches = queryMatches.matches(rootNode);
 
-  const stateParts: StateConfig[] = [
+  const stateParts: StateObject[] = [
     {
       node: rootNode,
       name: "",
       id: getStateId(rootNode),
+      path: "",
     },
   ];
 
@@ -362,6 +365,7 @@ export const getStateConfigAtPosition = (
             node: cap.node,
             name: stateName,
             id: stateId,
+            path: stateName,
           });
         }
       }
@@ -384,52 +388,52 @@ export const getCurrentStateAtPosition = (
 
 /**
  * Finds all the descendant state nodes visible from the root node including itself
- * Child names will be nested with . separators relative to the root node
+ * State paths will be nested with . separators relative to the root node
  */
-export const getAllDescendantStateNodes = (rootNode: Parser.SyntaxNode) => {
+export const getAllDescendantStateObjects = (rootNode: Parser.SyntaxNode) => {
   const parser = createParser();
   const queryMatches = new Parser.Query(parser.getLanguage(), stateQuery);
   const matches = queryMatches.matches(rootNode);
 
-  const states: StateConfig[] = [
+  const stateObjects: StateObject[] = [
     {
       node: rootNode,
       name: "",
       id: getStateId(rootNode),
+      path: "",
     },
   ];
 
   for (const match of matches) {
-    match.captures.forEach((cap) => {
-      if (cap.name === "xstate.state") {
-        const stateName = match.captures.find(
-          (cap) => cap.name === "xstate.state.name",
-        )?.node.text;
-        const anscestorStates = states.filter(
-          (state) =>
-            state.node.startIndex <= cap.node.startIndex &&
-            cap.node.endIndex <= state.node.endIndex,
-        );
-        const parentState = anscestorStates.at(-1);
-        const stateConfig = match.captures.find(
-          (cap) => cap.name === "xstate.state.config",
-        )?.node;
-        const stateId = stateConfig ? getStateId(stateConfig) : "";
-        if (stateName) {
-          states.push({
-            node: cap.node,
-            name: [
-              ...(parentState?.name ? [parentState.name] : []),
-              stateName,
-            ].join("."),
-            id: stateId,
-          });
-        }
-      }
+    const {
+      ["xstate.state.name"]: stateNameNode,
+      ["xstate.state.config"]: stateConfigNode,
+      ["xstate.state"]: fullStateNode,
+    } = getAllCapturesOfMatch(match);
+
+    if (!stateNameNode || !stateConfigNode || !fullStateNode) continue;
+
+    const stateName = stateNameNode.text;
+    const parentState = stateObjects.findLast(
+      (state) =>
+        state.node.startIndex <= fullStateNode.startIndex &&
+        fullStateNode.endIndex <= state.node.endIndex,
+    );
+    const statePath = parentState?.path
+      ? `${parentState.path}.${stateName}`
+      : stateName;
+
+    const stateId = getStateId(stateConfigNode);
+
+    stateObjects.push({
+      node: fullStateNode,
+      name: stateName,
+      path: statePath,
+      id: stateId,
     });
   }
 
-  return states;
+  return stateObjects;
 };
 
 /**
@@ -452,11 +456,11 @@ function getStateId(stateConfigNode: Parser.SyntaxNode) {
 
 export function getAllStateTargets(
   currentState: string,
-  stateNodes: StateConfig[],
+  stateNodes: StateObject[],
 ) {
   const targets = [];
   for (const state of stateNodes) {
-    const isCurrentState = state.name === currentState;
+    const isCurrentState = state.path === currentState;
     // First figure out the ids
     if (state.id) {
       targets.push({
@@ -468,11 +472,11 @@ export function getAllStateTargets(
       // TODO: push all children of this state
     }
 
-    if (state.name === "") continue;
+    if (state.path === "") continue;
 
     // Handle child states
-    if (state.name.startsWith(currentState) && !isCurrentState) {
-      const targetId = state.name.slice(
+    if (state.path.startsWith(currentState) && !isCurrentState) {
+      const targetId = state.path.slice(
         currentState === "" ? 0 : currentState.length + 1,
       );
       targets.push({
@@ -484,11 +488,12 @@ export function getAllStateTargets(
     }
 
     // Handle sibling states
+    // The root state node has no siblings
     if (currentState === "") continue;
 
     const parentState = currentState.split(".").slice(0, -1).join(".");
-    if (state.name.startsWith(parentState)) {
-      const targetId = state.name.slice(parentState.length);
+    if (state.path.startsWith(parentState)) {
+      const targetId = state.path.slice(parentState.length);
       targets.push({
         type: "relative",
         sortText: getStateSortText("relative", targetId, isCurrentState),
