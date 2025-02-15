@@ -25,7 +25,7 @@ import { TransitionType } from "./utils";
  * Finds the machine at the given position and returns all capture groups within
  * the match
  */
-const getMachineNodes = (rootNode: Parser.SyntaxNode, position: number) => {
+function getMachineNodes(rootNode: Parser.SyntaxNode, position: number) {
   const parser = createParser();
   const queryMatches = new Parser.Query(
     parser.getLanguage(),
@@ -52,7 +52,7 @@ const getMachineNodes = (rootNode: Parser.SyntaxNode, position: number) => {
   }
 
   return results;
-};
+}
 
 /**
  * Find the machine at the given position
@@ -187,11 +187,11 @@ export function getImplementableInMachine(
  * and name
  * To be used within the setup configuration
  */
-export const findImplementableInSetup = (
+export function findImplementableInSetup(
   setupConfig: Parser.SyntaxNode,
   type: ImplementableType,
   implementationName: string,
-) => {
+) {
   const setupNode = findCaptureNodeWithText(
     setupConfig,
     setupQueryByImplementationType[type],
@@ -200,7 +200,7 @@ export const findImplementableInSetup = (
   );
 
   return setupNode;
-};
+}
 
 const setupKeyToImplementableType = {
   actions: "action",
@@ -212,7 +212,7 @@ const setupKeyToImplementableType = {
 /**
  * Find the setup node at the given position and also return it's implementable type
  */
-export const getImplementableInSetupInPosition = (
+export function getImplementableInSetupInPosition(
   setupConfig: Parser.SyntaxNode,
   position: number,
 ):
@@ -225,7 +225,7 @@ export const getImplementableInSetupInPosition = (
       type: "unknown";
       node: null;
       text: string;
-    } => {
+    } {
   const parser = createParser();
   const queryMatches = new Parser.Query(
     parser.getLanguage(),
@@ -257,16 +257,16 @@ export const getImplementableInSetupInPosition = (
   }
 
   return { type: "unknown", node: null, text: "" };
-};
+}
 
 /**
  * Find all implementations of the given implementable type and name in the given machine
  */
-export const findAllImplementablesInMachine = (
+export function findAllImplementablesInMachine(
   machineConfig: Parser.SyntaxNode,
   implementationType: ImplementableType,
   implementationName: string,
-) => {
+) {
   const parser = createParser();
   const queryMatches = new Parser.Query(
     parser.getLanguage(),
@@ -285,20 +285,15 @@ export const findAllImplementablesInMachine = (
   }
 
   return implementations;
-};
-
-interface TransitionTarget {
-  node: Parser.SyntaxNode;
-  text: string;
 }
 
 /**
  * Returns the transition (target) node at the given position
  */
-export const getTransitionAtPosition = (
+export function getTransitionAtPosition(
   rootNode: Parser.SyntaxNode,
   position: number,
-) => {
+) {
   const node = findMatchingNode(
     rootNode,
     position,
@@ -311,7 +306,7 @@ export const getTransitionAtPosition = (
     node,
     text,
   };
-};
+}
 
 interface StateObject {
   node: Parser.SyntaxNode;
@@ -326,10 +321,10 @@ interface StateObject {
  * position
  * Must use the machine config as the root node
  */
-export const getStateConfigAtPosition = (
+export function getStateConfigAtPosition(
   rootNode: Parser.SyntaxNode,
   position: number,
-) => {
+) {
   const parser = createParser();
   const queryMatches = new Parser.Query(parser.getLanguage(), stateQuery);
   const matches = queryMatches.matches(rootNode);
@@ -373,7 +368,7 @@ export const getStateConfigAtPosition = (
   }
 
   return stateParts;
-};
+}
 
 export const getCurrentStateAtPosition = (
   rootNode: Parser.SyntaxNode,
