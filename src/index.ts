@@ -7,7 +7,6 @@ import {
   createNodeDefinitionWithDisplayParts,
   createNodeDefinitionWithTextSpan,
   createReferenceDefinition,
-  getTransitionType,
 } from "./utils";
 import { getFileRootNode } from "./treesitter";
 import {
@@ -16,10 +15,9 @@ import {
   getMachineConfigNodes,
   findImplementableInSetup,
   getImplementableInSetupInPosition,
-  getStateConfigAtPosition,
+  getStateObjectsAtPosition,
   getAllDescendantStateObjects,
-  getTransitionAtPosition,
-  getCurrentStateAtPosition,
+  getTransitionObjectAtPosition,
   getAllStateTargets,
 } from "./xstate";
 
@@ -171,69 +169,78 @@ function init(modules: {
         }
       }
 
-      const { node: transitionNode, text: transitionText } =
-        getTransitionAtPosition(machineConfig, position);
+      const transitionObject = getTransitionObjectAtPosition(
+        machineConfig,
+        position,
+      );
+      if (transitionObject) {
+        const {
+          node: transitionNode,
+          text: transitionText,
+          target: transitionTarget,
+          type: transitionType,
+        } = transitionObject;
 
-      if (transitionNode && transitionText) {
-        const { target, type } = getTransitionType(transitionText);
         log(`✅ Found transition ${transitionText} at ${position}`);
+        const machineStates = getAllDescendantStateObjects(machineConfig);
 
-        if (type === "absolute") {
-          const states = getAllDescendantStateObjects(machineConfig);
-          const [idTarget, ...rest] = target.split(".");
+        if (transitionType === "absolute") {
+          const [idTarget, ...rest] = transitionTarget.split(".");
           const relativeTarget = rest.join(".");
-          const idTargetNode = states.find((state) => state.id === idTarget);
-          if (idTargetNode) {
+          const stateWithId = machineStates.find(
+            (state) => state.id === idTarget,
+          );
+          if (stateWithId) {
             // If just a pure id, then go to the state
             if (relativeTarget === "") {
-              log(`✅ Found state target ${idTargetNode.name} at ${position}`);
+              log(
+                `✅ Found state target ${stateWithId.name || "(machine)"} at ${position}`,
+              );
               return createNodeDefinitionWithTextSpan(
                 fileName,
-                idTargetNode.node,
+                stateWithId.node,
                 transitionNode,
               );
             } else {
               // If more after . then run the state children search
-              const childStates = getAllDescendantStateObjects(idTargetNode.node);
-
-              const stateTargetNode = childStates.find(
-                (state) => state.path === relativeTarget,
+              const stateTarget = machineStates.find(
+                (state) =>
+                  state.path === `${stateWithId.path}.${relativeTarget}`,
               );
 
-              if (stateTargetNode) {
-                log(
-                  `✅ Found state target ${stateTargetNode.path} at ${position}`,
-                );
+              if (stateTarget) {
+                log(`✅ Found state target ${stateTarget.path} at ${position}`);
                 return createNodeDefinitionWithTextSpan(
                   fileName,
-                  stateTargetNode.node,
+                  stateTarget.node,
                   transitionNode,
                 );
               }
             }
           }
         } else {
-          const stateConfigParts = getStateConfigAtPosition(
-            machineConfig,
+          const currentStateObjects = getStateObjectsAtPosition(
+            machineStates,
             position,
           );
 
-          const searchNode = stateConfigParts.at(
-            type === "relativeChildren" ? -1 : -2,
+          const baseStateObject = currentStateObjects.at(
+            transitionType === "relativeChildren" ? -1 : -2,
           );
-          if (!searchNode) return prior;
+          if (!baseStateObject) return prior;
 
-          const childStates = getAllDescendantStateObjects(searchNode.node);
-
-          const stateTargetNode = childStates.find(
-            (state) => state.path === target,
+          const stateObjectTarget = machineStates.find(
+            (state) =>
+              state.path === `${baseStateObject.path}.${transitionTarget}`,
           );
 
-          if (stateTargetNode) {
-            log(`✅ Found state target ${stateTargetNode.path} at ${position}`);
+          if (stateObjectTarget) {
+            log(
+              `✅ Found state target ${stateObjectTarget.path} at ${position}`,
+            );
             return createNodeDefinitionWithTextSpan(
               fileName,
-              stateTargetNode.node,
+              stateObjectTarget.node,
               transitionNode,
             );
           }
@@ -263,29 +270,30 @@ function init(modules: {
       const { machineConfig, location } = machineConfigNodes;
       if (location !== "machineConfig") return prior;
 
-      const { node: transitionNode, text: transitionText } =
-        getTransitionAtPosition(machineConfig, position);
+      const transitionObject = getTransitionObjectAtPosition(
+        machineConfig,
+        position,
+      );
 
-      if (transitionNode) {
-        log(
-          `✅ Found transition ${transitionText ?? "(empty)"} at ${position}`,
-        );
+      if (transitionObject) {
+        log(`✅ Found transition at ${position}`);
+        const machineStates = getAllDescendantStateObjects(machineConfig);
 
         // Get all state nodes
-        const states = getAllDescendantStateObjects(machineConfig);
-        const currentStateName = getCurrentStateAtPosition(
-          machineConfig,
-          position,
-        );
+        const currentStatePath =
+          getStateObjectsAtPosition(machineStates, position).at(-1)?.path ?? "";
 
-        const stateTargets = getAllStateTargets(currentStateName, states);
+        const stateTargets = getAllStateTargets(
+          currentStatePath,
+          machineStates,
+        );
 
         return {
           isGlobalCompletion: false,
           isMemberCompletion: true,
           isNewIdentifierLocation: false,
           entries: stateTargets.map((target) => ({
-            name: target.targetId,
+            name: target.transitionName,
             kind: ScriptElementKind.string,
             sortText: target.sortText,
           })),
@@ -294,7 +302,6 @@ function init(modules: {
 
       return prior;
     };
-
 
     return proxy;
   }

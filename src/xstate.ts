@@ -19,7 +19,7 @@ import {
   findMatchingNode,
   getAllCapturesOfMatch,
 } from "./treesitter";
-import { TransitionType } from "./utils";
+import { getTransitionType, TransitionType } from "./utils";
 
 /**
  * Finds the machine at the given position and returns all capture groups within
@@ -290,7 +290,7 @@ export function findAllImplementablesInMachine(
 /**
  * Returns the transition (target) node at the given position
  */
-export function getTransitionAtPosition(
+export function getTransitionObjectAtPosition(
   rootNode: Parser.SyntaxNode,
   position: number,
 ) {
@@ -300,10 +300,14 @@ export function getTransitionAtPosition(
     transitionQuery,
     "transition.target",
   );
-  const text = node?.firstNamedChild?.text;
+  if (!node) return null;
+  const text = node.firstNamedChild?.text;
+  const { type, target } = getTransitionType(text);
 
   return {
     node,
+    type,
+    target,
     text,
   };
 }
@@ -316,76 +320,10 @@ interface StateObject {
 }
 
 /**
- * Finds the heirarchy of state configs at the given getTransitionAtPosition
- * Starts with the machine config and matches each state config along the
- * position
- * Must use the machine config as the root node
- */
-export function getStateConfigAtPosition(
-  rootNode: Parser.SyntaxNode,
-  position: number,
-) {
-  const parser = createParser();
-  const queryMatches = new Parser.Query(parser.getLanguage(), stateQuery);
-  const matches = queryMatches.matches(rootNode);
-
-  const stateParts: StateObject[] = [
-    {
-      node: rootNode,
-      name: "",
-      id: getStateId(rootNode),
-      path: "",
-    },
-  ];
-
-  for (const match of matches) {
-    match.captures.forEach((cap) => {
-      if (
-        cap.name === "xstate.state" &&
-        cap.node.startIndex <= position &&
-        position < cap.node.endIndex
-      ) {
-        const stateName = match.captures.find(
-          (cap) => cap.name === "xstate.state.name",
-        )?.node.text;
-
-        const stateConfig = match.captures.find(
-          (cap) => cap.name === "xstate.state.config",
-        )?.node;
-
-        const stateId = stateConfig ? getStateId(stateConfig) : "";
-
-        if (stateName) {
-          stateParts.push({
-            node: cap.node,
-            name: stateName,
-            id: stateId,
-            path: stateName,
-          });
-        }
-      }
-    });
-  }
-
-  return stateParts;
-}
-
-export const getCurrentStateAtPosition = (
-  rootNode: Parser.SyntaxNode,
-  position: number,
-) => {
-  const stateConfigParts = getStateConfigAtPosition(rootNode, position);
-  return stateConfigParts
-    .slice(1)
-    .map((state) => state.name)
-    .join(".");
-};
-
-/**
  * Finds all the descendant state nodes visible from the root node including itself
  * State paths will be nested with . separators relative to the root node
  */
-export const getAllDescendantStateObjects = (rootNode: Parser.SyntaxNode) => {
+export function getAllDescendantStateObjects(rootNode: Parser.SyntaxNode) {
   const parser = createParser();
   const queryMatches = new Parser.Query(parser.getLanguage(), stateQuery);
   const matches = queryMatches.matches(rootNode);
@@ -414,9 +352,7 @@ export const getAllDescendantStateObjects = (rootNode: Parser.SyntaxNode) => {
         state.node.startIndex <= fullStateNode.startIndex &&
         fullStateNode.endIndex <= state.node.endIndex,
     );
-    const statePath = parentState?.path
-      ? `${parentState.path}.${stateName}`
-      : stateName;
+    const statePath = `${parentState?.path ?? ""}.${stateName}`;
 
     const stateId = getStateId(stateConfigNode);
 
@@ -429,7 +365,21 @@ export const getAllDescendantStateObjects = (rootNode: Parser.SyntaxNode) => {
   }
 
   return stateObjects;
-};
+}
+
+/**
+ * Filters the states objects to only include those with the current position.
+ * The last one will be the current state
+ */
+export function getStateObjectsAtPosition(
+  stateObject: StateObject[],
+  position: number,
+) {
+  return stateObject.filter(
+    (state) =>
+      state.node.startIndex <= position && position < state.node.endIndex,
+  );
+}
 
 /**
  * From a state config node, find the id by iterating through the object
@@ -449,55 +399,80 @@ function getStateId(stateConfigNode: Parser.SyntaxNode) {
   return "";
 }
 
+interface StateTarget {
+  type: TransitionType;
+  sortText: string;
+  transitionName: string;
+  node: Parser.SyntaxNode;
+}
+
 export function getAllStateTargets(
-  currentState: string,
-  stateNodes: StateObject[],
+  currentStatePath: string,
+  machineStateObjects: StateObject[],
 ) {
-  const targets = [];
-  for (const state of stateNodes) {
-    const isCurrentState = state.path === currentState;
+  const stateTargets: StateTarget[] = [];
+  for (const state of machineStateObjects) {
+    const isCurrentState = state.path === currentStatePath;
     // First figure out the ids
     if (state.id) {
-      targets.push({
+      stateTargets.push({
         type: "absolute",
         sortText: getStateSortText("absolute", state.id, isCurrentState),
-        targetId: `#${state.id}`,
+        transitionName: `#${state.id}`,
         node: state.node,
       });
-      // TODO: push all children of this state
+      for (const childState of machineStateObjects) {
+        if (
+          childState.path.startsWith(state.path) &&
+          childState.path !== state.path
+        ) {
+          const childStateAbsolutePath = `${state.id}${childState.path.slice(
+            state.path.length,
+          )}`;
+          stateTargets.push({
+            type: "absolute",
+            sortText: getStateSortText(
+              "absolute",
+              childStateAbsolutePath,
+              childState.path === currentStatePath,
+            ),
+            transitionName: `#${childStateAbsolutePath}`,
+            node: childState.node,
+          });
+        }
+      }
     }
 
+    // The root state can only be reached with an id
     if (state.path === "") continue;
 
     // Handle child states
-    if (state.path.startsWith(currentState) && !isCurrentState) {
-      const targetId = state.path.slice(
-        currentState === "" ? 0 : currentState.length + 1,
-      );
-      targets.push({
+    if (state.path.startsWith(currentStatePath) && !isCurrentState) {
+      const transitionName = state.path.slice(currentStatePath.length + 1);
+      stateTargets.push({
         type: "relativeChildren",
-        sortText: getStateSortText("relativeChildren", targetId),
-        targetId: `.${targetId}`,
+        sortText: getStateSortText("relativeChildren", transitionName),
+        transitionName: `.${transitionName}`,
         node: state.node,
       });
     }
 
     // Handle sibling states
     // The root state node has no siblings
-    if (currentState === "") continue;
+    if (currentStatePath === "") continue;
 
-    const parentState = currentState.split(".").slice(0, -1).join(".");
-    if (state.path.startsWith(parentState)) {
-      const targetId = state.path.slice(parentState.length);
-      targets.push({
+    const parentStatePath = getParentStatePath(currentStatePath);
+    if (state.path.startsWith(parentStatePath)) {
+      const transitionName = state.path.slice(parentStatePath.length + 1);
+      stateTargets.push({
         type: "relative",
-        sortText: getStateSortText("relative", targetId, isCurrentState),
-        targetId: targetId,
+        sortText: getStateSortText("relative", transitionName, isCurrentState),
+        transitionName,
         node: state.node,
       });
     }
   }
-  return targets;
+  return stateTargets;
 }
 
 const stateSortTextMap = {
@@ -507,9 +482,13 @@ const stateSortTextMap = {
 };
 
 function getStateSortText(
-  transitionType: TransitionType,
+  transitionType: Exclude<TransitionType, "unknown">,
   stateName: string,
   isCurrentState?: boolean,
 ) {
   return `${isCurrentState ? "z" : ""}${stateName.split(".").length - 1}${stateSortTextMap[transitionType]}`;
+}
+
+function getParentStatePath(statePath: string) {
+  return statePath.split(".").slice(0, -1).join(".");
 }

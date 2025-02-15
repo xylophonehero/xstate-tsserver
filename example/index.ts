@@ -51,7 +51,7 @@ setup({
   }),
   always: [
     {
-      target: "",
+      target: ".b.child",
     },
   ],
   entry: [
@@ -135,7 +135,7 @@ setup({
             target: "c",
           },
         ],
-        event3: "b",
+        event3: "",
       },
     },
     b: {
@@ -143,10 +143,10 @@ setup({
         simpleDelay: [
           {
             guard: "simpleGuard",
-            target: ".child",
+            target: "",
           },
           {
-            target: "",
+            target: ".child2",
           },
         ],
       },
