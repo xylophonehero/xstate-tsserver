@@ -20,6 +20,7 @@ import {
   getTransitionObjectAtPosition,
   getAllStateTargets,
   getInitialStateObjectAtPosition,
+  getAllDirectChildStateTargets,
 } from "./xstate";
 
 function init(modules: {
@@ -327,6 +328,41 @@ function init(modules: {
             replacementSpan: {
               start: transitionNode.startIndex + 1,
               length: transitionNode.endIndex - transitionNode.startIndex - 2,
+            },
+            name: target.transitionName,
+            kind: ScriptElementKind.string,
+            sortText: target.sortText,
+          })),
+        };
+      }
+
+      const initialStateObject = getInitialStateObjectAtPosition(
+        machineConfig,
+        position,
+      );
+
+      if (initialStateObject) {
+        const { node: initialStateNode } = initialStateObject;
+        log(`✅ Found initial state at ${position}`);
+        const machineStates = getAllDescendantStateObjects(machineConfig);
+
+        // Get all state nodes
+        const currentStatePath =
+          getStateObjectsAtPosition(machineStates, position).at(-1)?.path ?? "";
+
+        const stateTargets = getAllDirectChildStateTargets(
+          currentStatePath,
+          machineStates,
+        );
+
+        return {
+          isGlobalCompletion: false,
+          isMemberCompletion: true,
+          isNewIdentifierLocation: false,
+          entries: stateTargets.map((target) => ({
+            replacementSpan: {
+              start: initialStateNode.startIndex + 1,
+              length: initialStateNode.endIndex - initialStateNode.startIndex - 2,
             },
             name: target.transitionName,
             kind: ScriptElementKind.string,

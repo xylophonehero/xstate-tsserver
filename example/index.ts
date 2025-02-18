@@ -80,7 +80,7 @@ setup({
   invoke: {
     src: "simpleActor",
   },
-  initial: "idle",
+  initial: "b",
   states: {
     idle: {
       entry: [

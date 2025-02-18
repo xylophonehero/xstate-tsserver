@@ -324,7 +324,7 @@ export function getInitialStateObjectAtPosition(
     "initial.state",
   );
   if (!node) return null;
-  const text = node.firstNamedChild?.text;
+  const text = node.firstNamedChild?.text ?? "";
 
   return {
     node,
@@ -434,7 +434,7 @@ function getInitialState(stateConfigNode: Parser.SyntaxNode) {
     if (!key || !value) continue;
     if (key.type === "property_identifier" && key.text === "initial") {
       if (value.type === "string") {
-        return value.namedChildren[0].text;
+        return value.namedChildren[0]?.text ?? "";
       }
     }
   }
@@ -515,6 +515,35 @@ export function getAllStateTargets(
     }
   }
   return stateTargets;
+}
+
+export function getAllDirectChildStateTargets(
+  currentStatePath: string,
+  machineStateObjects: StateObject[],
+) {
+  const stateTargets: StateTarget[] = [];
+  for (const state of machineStateObjects) {
+    const currentStateDepth = getStateDepth(currentStatePath);
+    const stateDepth = getStateDepth(state.path);
+
+    if (
+      state.path.startsWith(currentStatePath) &&
+      stateDepth === currentStateDepth + 1
+    ) {
+      const transitionName = state.path.slice(currentStatePath.length + 1);
+      stateTargets.push({
+        type: "relativeChildren",
+        sortText: state.node.startIndex.toString(),
+        transitionName,
+        node: state.node,
+      });
+    }
+  }
+  return stateTargets;
+}
+
+function getStateDepth(statePath: string) {
+  return statePath.split(".").length;
 }
 
 const stateSortTextMap = {
