@@ -156,7 +156,7 @@ setup({
         child2: {
           on: {
             event: "#root",
-            event2: "#root.b",
+            event2: "#root.b.child",
           },
         },
       },

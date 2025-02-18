@@ -294,3 +294,10 @@ export const transitionQuery = `
   ]
 )
 `;
+
+export const initialStateQuery = `
+(pair
+  key: (property_identifier) @key (#eq? @key "initial")
+  value: (string) @initial.state
+)
+`;

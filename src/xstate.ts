@@ -1,5 +1,6 @@
 import Parser from "tree-sitter";
 import {
+  initialStateQuery,
   machineActionsQuery,
   machineActorsQuery,
   machineDelaysQuery,
@@ -312,11 +313,33 @@ export function getTransitionObjectAtPosition(
   };
 }
 
+export function getInitialStateObjectAtPosition(
+  rootNode: Parser.SyntaxNode,
+  position: number,
+) {
+  const node = findMatchingNode(
+    rootNode,
+    position,
+    initialStateQuery,
+    "initial.state",
+  );
+  if (!node) return null;
+  const text = node.firstNamedChild?.text;
+
+  return {
+    node,
+    text,
+  };
+}
+
 interface StateObject {
   node: Parser.SyntaxNode;
   name: string;
   id: string;
   path: string;
+  // Not currently used but maybe useful later
+  initialState: string;
+  isInitialState: boolean;
 }
 
 /**
@@ -334,6 +357,8 @@ export function getAllDescendantStateObjects(rootNode: Parser.SyntaxNode) {
       name: "",
       id: getStateId(rootNode),
       path: "",
+      initialState: getInitialState(rootNode),
+      isInitialState: true,
     },
   ];
 
@@ -355,12 +380,15 @@ export function getAllDescendantStateObjects(rootNode: Parser.SyntaxNode) {
     const statePath = `${parentState?.path ?? ""}.${stateName}`;
 
     const stateId = getStateId(stateConfigNode);
+    const initialState = getInitialState(stateConfigNode);
 
     stateObjects.push({
       node: fullStateNode,
       name: stateName,
       path: statePath,
       id: stateId,
+      initialState,
+      isInitialState: stateName === parentState?.initialState,
     });
   }
 
@@ -391,6 +419,20 @@ function getStateId(stateConfigNode: Parser.SyntaxNode) {
     const [key, value] = pair.namedChildren;
     if (!key || !value) continue;
     if (key.type === "property_identifier" && key.text === "id") {
+      if (value.type === "string") {
+        return value.namedChildren[0].text;
+      }
+    }
+  }
+  return "";
+}
+
+function getInitialState(stateConfigNode: Parser.SyntaxNode) {
+  if (stateConfigNode.type !== "object") return "";
+  for (const pair of stateConfigNode.namedChildren) {
+    const [key, value] = pair.namedChildren;
+    if (!key || !value) continue;
+    if (key.type === "property_identifier" && key.text === "initial") {
       if (value.type === "string") {
         return value.namedChildren[0].text;
       }

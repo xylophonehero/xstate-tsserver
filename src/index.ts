@@ -19,6 +19,7 @@ import {
   getAllDescendantStateObjects,
   getTransitionObjectAtPosition,
   getAllStateTargets,
+  getInitialStateObjectAtPosition,
 } from "./xstate";
 
 function init(modules: {
@@ -139,6 +140,7 @@ function init(modules: {
     // If the defintion is a shorthand_property_identifier, then use it's
     // definition for the implementable definition
     // If used on a transition target node, go to the state which it targets
+    // If used on an initial state identifier, go to the state which is targets
     proxy.getDefinitionAndBoundSpan = (fileName, position) => {
       const prior = info.languageService.getDefinitionAndBoundSpan(
         fileName,
@@ -247,9 +249,38 @@ function init(modules: {
         }
       }
 
+      const initialStateObject = getInitialStateObjectAtPosition(
+        machineConfig,
+        position,
+      );
+      if (initialStateObject) {
+        log(`✅ Found initial state ${initialStateObject.text} at ${position}`);
+        const machineStates = getAllDescendantStateObjects(machineConfig);
+        const currentStateObjects = getStateObjectsAtPosition(
+          machineStates,
+          position,
+        );
+
+        const currentStatePath = currentStateObjects.at(-1)?.path;
+        const targetPath = `${currentStatePath}.${initialStateObject.text}`;
+        const targetStateObject = machineStates.find(
+          (state) => state.path === targetPath,
+        );
+
+        if (targetStateObject) {
+          log(`✅ Found initial state target ${targetPath} at ${position}`);
+          return createNodeDefinitionWithTextSpan(
+            fileName,
+            targetStateObject.node,
+            initialStateObject.node,
+          );
+        }
+      }
+
       return prior;
     };
 
+    // If used on a transition target node, list all the possible transitions
     proxy.getCompletionsAtPosition = (
       fileName,
       position,
@@ -262,7 +293,6 @@ function init(modules: {
         options,
         formatSettings,
       );
-      log(`get completions at position ${position}`);
 
       const machineConfigNodes = getMachineAtPosition(fileName, position);
       if (!machineConfigNodes) return prior;
