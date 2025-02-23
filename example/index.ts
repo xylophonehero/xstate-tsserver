@@ -49,6 +49,11 @@ setup({
       input: { foo: "bar" },
     }),
   }),
+  always: [
+    {
+      target: ".b.child",
+    },
+  ],
   entry: [
     spawnChild("simpleActor"),
     spawnChild("actorWithInput", {
@@ -75,7 +80,7 @@ setup({
   invoke: {
     src: "simpleActor",
   },
-  initial: "idle",
+  initial: "b",
   states: {
     idle: {
       entry: [
@@ -98,7 +103,7 @@ setup({
               target: "b",
             },
             {
-              target: "c",
+              target: "",
             },
           ],
         },
@@ -130,7 +135,7 @@ setup({
             target: "c",
           },
         ],
-        event3: "b",
+        event3: "",
       },
     },
     b: {
@@ -138,7 +143,7 @@ setup({
         simpleDelay: [
           {
             guard: "simpleGuard",
-            target: ".child",
+            target: "",
           },
           {
             target: ".child2",
@@ -151,13 +156,13 @@ setup({
         child2: {
           on: {
             event: "#root",
-            event2: "#root.b",
+            event2: "#root.b.child",
           },
         },
       },
       always: [
         {
-          target: "deep1",
+          target: "",
         },
         {
           target: "deep1.deep2",
@@ -193,7 +198,7 @@ setup({
       states: {
         deep2: {
           after: {
-            1000: {},
+            1000: { target: ".deep3" },
           },
           states: {
             deep3: {

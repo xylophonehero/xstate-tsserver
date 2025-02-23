@@ -1,9 +1,12 @@
-import type { LanguageService, server } from "typescript/lib/tsserverlibrary";
+import {
+  ScriptElementKind,
+  type LanguageService,
+  type server,
+} from "typescript/lib/tsserverlibrary";
 import {
   createNodeDefinitionWithDisplayParts,
   createNodeDefinitionWithTextSpan,
   createReferenceDefinition,
-  getTransitionType,
 } from "./utils";
 import { getFileRootNode } from "./treesitter";
 import {
@@ -12,9 +15,12 @@ import {
   getMachineConfigNodes,
   findImplementableInSetup,
   getImplementableInSetupInPosition,
-  getStateConfigAtPosition,
-  getAllDescendantStateNodes,
-  getTransitionAtPosition,
+  getStateObjectsAtPosition,
+  getAllDescendantStateObjects,
+  getTransitionObjectAtPosition,
+  getAllStateTargets,
+  getInitialStateObjectAtPosition,
+  getAllDirectChildStateTargets,
 } from "./xstate";
 
 function init(modules: {
@@ -135,6 +141,7 @@ function init(modules: {
     // If the defintion is a shorthand_property_identifier, then use it's
     // definition for the implementable definition
     // If used on a transition target node, go to the state which it targets
+    // If used on an initial state identifier, go to the state which is targets
     proxy.getDefinitionAndBoundSpan = (fileName, position) => {
       const prior = info.languageService.getDefinitionAndBoundSpan(
         fileName,
@@ -165,72 +172,203 @@ function init(modules: {
         }
       }
 
-      const transitionNode = getTransitionAtPosition(machineConfig, position);
+      const transitionObject = getTransitionObjectAtPosition(
+        machineConfig,
+        position,
+      );
+      if (transitionObject) {
+        const {
+          node: transitionNode,
+          text: transitionText,
+          target: transitionTarget,
+          type: transitionType,
+        } = transitionObject;
 
-      if (transitionNode) {
-        const { target, type } = getTransitionType(transitionNode.text);
-        log(`✅ Found transition ${transitionNode.text} at ${position}`);
+        log(`✅ Found transition ${transitionText} at ${position}`);
+        const machineStates = getAllDescendantStateObjects(machineConfig);
 
-        if (type === "absolute") {
-          const states = getAllDescendantStateNodes(machineConfig);
-          const [idTarget, ...rest] = target.split(".");
+        if (transitionType === "absolute") {
+          const [idTarget, ...rest] = transitionTarget.split(".");
           const relativeTarget = rest.join(".");
-          const idTargetNode = states.find((state) => state.id === idTarget);
-          if (idTargetNode) {
+          const stateWithId = machineStates.find(
+            (state) => state.id === idTarget,
+          );
+          if (stateWithId) {
             // If just a pure id, then go to the state
             if (relativeTarget === "") {
-              log(`✅ Found state target ${idTargetNode.name} at ${position}`);
+              log(
+                `✅ Found state target ${stateWithId.name || "(machine)"} at ${position}`,
+              );
               return createNodeDefinitionWithTextSpan(
                 fileName,
-                idTargetNode.node,
+                stateWithId.node,
                 transitionNode,
               );
             } else {
               // If more after . then run the state children search
-              const childStates = getAllDescendantStateNodes(idTargetNode.node);
-
-              const stateTargetNode = childStates.find(
-                (state) => state.name === relativeTarget,
+              const stateTarget = machineStates.find(
+                (state) =>
+                  state.path === `${stateWithId.path}.${relativeTarget}`,
               );
 
-              if (stateTargetNode) {
-                log(
-                  `✅ Found state target ${stateTargetNode.name} at ${position}`,
-                );
+              if (stateTarget) {
+                log(`✅ Found state target ${stateTarget.path} at ${position}`);
                 return createNodeDefinitionWithTextSpan(
                   fileName,
-                  stateTargetNode.node,
+                  stateTarget.node,
                   transitionNode,
                 );
               }
             }
           }
         } else {
-          const stateConfigParts = getStateConfigAtPosition(
-            machineConfig,
+          const currentStateObjects = getStateObjectsAtPosition(
+            machineStates,
             position,
           );
 
-          const searchNode = stateConfigParts.at(
-            type === "relativeChildren" ? -1 : -2,
+          const baseStateObject = currentStateObjects.at(
+            transitionType === "relativeChildren" ? -1 : -2,
           );
-          if (!searchNode) return prior;
+          if (!baseStateObject) return prior;
 
-          const childStates = getAllDescendantStateNodes(searchNode.node);
-
-          const stateTargetNode = childStates.find(
-            (state) => state.name === target,
+          const stateObjectTarget = machineStates.find(
+            (state) =>
+              state.path === `${baseStateObject.path}.${transitionTarget}`,
           );
 
-          if (stateTargetNode) {
-            log(`✅ Found state target ${stateTargetNode.name} at ${position}`);
+          if (stateObjectTarget) {
+            log(
+              `✅ Found state target ${stateObjectTarget.path} at ${position}`,
+            );
             return createNodeDefinitionWithTextSpan(
               fileName,
-              stateTargetNode.node,
+              stateObjectTarget.node,
               transitionNode,
             );
           }
         }
+      }
+
+      const initialStateObject = getInitialStateObjectAtPosition(
+        machineConfig,
+        position,
+      );
+      if (initialStateObject) {
+        log(`✅ Found initial state ${initialStateObject.text} at ${position}`);
+        const machineStates = getAllDescendantStateObjects(machineConfig);
+        const currentStateObjects = getStateObjectsAtPosition(
+          machineStates,
+          position,
+        );
+
+        const currentStatePath = currentStateObjects.at(-1)?.path;
+        const targetPath = `${currentStatePath}.${initialStateObject.text}`;
+        const targetStateObject = machineStates.find(
+          (state) => state.path === targetPath,
+        );
+
+        if (targetStateObject) {
+          log(`✅ Found initial state target ${targetPath} at ${position}`);
+          return createNodeDefinitionWithTextSpan(
+            fileName,
+            targetStateObject.node,
+            initialStateObject.node,
+          );
+        }
+      }
+
+      return prior;
+    };
+
+    // If used on a transition target node, list all the possible transitions
+    proxy.getCompletionsAtPosition = (
+      fileName,
+      position,
+      options,
+      formatSettings,
+    ) => {
+      const prior = info.languageService.getCompletionsAtPosition(
+        fileName,
+        position,
+        options,
+        formatSettings,
+      );
+
+      const machineConfigNodes = getMachineAtPosition(fileName, position);
+      if (!machineConfigNodes) return prior;
+
+      const { machineConfig, location } = machineConfigNodes;
+      if (location !== "machineConfig") return prior;
+
+      const transitionObject = getTransitionObjectAtPosition(
+        machineConfig,
+        position,
+      );
+
+      if (transitionObject) {
+        const { node: transitionNode } = transitionObject;
+        log(`✅ Found transition at ${position}`);
+        const machineStates = getAllDescendantStateObjects(machineConfig);
+
+        // Get all state nodes
+        const currentStatePath =
+          getStateObjectsAtPosition(machineStates, position).at(-1)?.path ?? "";
+
+        const stateTargets = getAllStateTargets(
+          currentStatePath,
+          machineStates,
+        );
+
+        return {
+          isGlobalCompletion: false,
+          isMemberCompletion: true,
+          isNewIdentifierLocation: false,
+          entries: stateTargets.map((target) => ({
+            replacementSpan: {
+              start: transitionNode.startIndex + 1,
+              length: transitionNode.endIndex - transitionNode.startIndex - 2,
+            },
+            name: target.transitionName,
+            kind: ScriptElementKind.string,
+            sortText: target.sortText,
+          })),
+        };
+      }
+
+      const initialStateObject = getInitialStateObjectAtPosition(
+        machineConfig,
+        position,
+      );
+
+      if (initialStateObject) {
+        const { node: initialStateNode } = initialStateObject;
+        log(`✅ Found initial state at ${position}`);
+        const machineStates = getAllDescendantStateObjects(machineConfig);
+
+        // Get all state nodes
+        const currentStatePath =
+          getStateObjectsAtPosition(machineStates, position).at(-1)?.path ?? "";
+
+        const stateTargets = getAllDirectChildStateTargets(
+          currentStatePath,
+          machineStates,
+        );
+
+        return {
+          isGlobalCompletion: false,
+          isMemberCompletion: true,
+          isNewIdentifierLocation: false,
+          entries: stateTargets.map((target) => ({
+            replacementSpan: {
+              start: initialStateNode.startIndex + 1,
+              length: initialStateNode.endIndex - initialStateNode.startIndex - 2,
+            },
+            name: target.transitionName,
+            kind: ScriptElementKind.string,
+            sortText: target.sortText,
+          })),
+        };
       }
 
       return prior;

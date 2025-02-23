@@ -9,7 +9,8 @@ This **TypeScript TSServer plugin** provides **better navigation for state machi
 
 ✅ **Go to Definition (`F12`/`gd`)** to jump from a given action, guard, actor, or delay to its definition within the setup block of a machine.
 ✅ **Find all references (`Shift+F12`/`gr`)** to list implementations of a given action, guard, actor, or delay.
-✅ **Jump to state target (`F12`/`gd`)** from a transition target to the state
+✅ **Jump to state target (`F12`/`gd`)** from a transition target or initial state to the state.
+✅ **Autocompletions for state targets** for a transition target or initial state.
 
 ### Coming soon
 
@@ -72,7 +73,7 @@ Modify your **`tsconfig.json`** to include the plugin:
 
 Restart the TypeScript server (in VSCode by running **"TypeScript: Restart TS Server"** from the command palette)
 
-TODO: find a way to activate the plugin globally
+TODO: Make a vscode extension to activate the plugin globally
 
 ---
 
@@ -95,10 +96,17 @@ Under any named action, guard, actor or delay within the machine config, find al
 
 ### Jump to state target
 
-Under any state target within the machine config, go to definition will navigate
+Under any transition target or initial state within the machine config, go to definition will navigate
 to that target state
 
-💡 **Tip:** In VSCode, hover over the implementation and press `F12` or `cmd+click` to navigate to the definition.
+💡 **Tip:** In VSCode, hover over the state name and press `F12` or `cmd+click` to navigate to the state config.
+
+### Get autocompletions for state targets
+
+Under any transition target or initial state within the machine config, the
+autocompletion array will show all the valid state targets.
+
+💡 **Tip:** In VSCode, press `ctrl+space` to show the autocompletion list for valid state targets.
 
 ---
 

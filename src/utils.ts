@@ -68,21 +68,24 @@ export function createReferenceDefinition(
   };
 }
 
-type TransitionType =
+export type TransitionType =
   // A string made up of words separated by dots
   | "relative"
   // A string made up of words separated by dots and starting with a dot
   | "relativeChildren"
   // A string made up of words separated by dots and starting with a hash
-  | "absolute";
+  | "absolute"
+  // Unknown transition type
+  | "unknown";
 
 /**
  * Returns the transition type and target string
  */
-export function getTransitionType(transition: string): {
+export function getTransitionType(transition?: string): {
   type: TransitionType;
   target: string;
 } {
+  if (!transition) return { type: "unknown", target: "" };
   if (transition.startsWith("#"))
     return {
       type: "absolute",

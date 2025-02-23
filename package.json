@@ -1,7 +1,7 @@
 {
   "name": "xstate-tsserver",
   "description": "XState tsserver plugin for easier navigation in state machines",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "license": "MIT",
   "main": "./out",
   "scripts": {
@@ -17,5 +17,11 @@
     "tree-sitter-typescript": "^0.23.2",
     "typescript": "^5.7.3"
   },
-  "keywords": ["typescript", "xstate", "tsserver", "plugin", "tree-sitter"]
+  "keywords": [
+    "typescript",
+    "xstate",
+    "tsserver",
+    "plugin",
+    "tree-sitter"
+  ]
 }
